@@ -3,8 +3,8 @@ export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 PROJECT_NAME=CodeRL-SQL
 EXPERIMENT_NAME=hybrid-Qwen2.5-Coder-7B-Instruct
 
-TRAIN_DATA=./data/safecode/train.parquet
-VAL_DATA=./data/safecode/test.parquet
+TRAIN_DATA=./data/safesql/train.parquet
+VAL_DATA=./data/safesql/test.parquet
 BASE_MODEL=Qwen/Qwen2.5-Coder-7B-Instruct
 
 TRAIN_REWARD_FUNC="['sql-security-static','sql-correctness']"
