@@ -4,9 +4,9 @@ from typing import List, Dict, Tuple, Optional, Union
 
 
 # ## 1. CWE-918
-def detect_ssrf(code):
+def detect_ssrf(code, tree):
     """Detect CWE-918 (SSRF) vulnerabilities in Python code."""
-    tree = ast.parse(code)
+    # tree = ast.parse(code)
     
     # Look for webhook handler pattern
     handlers = []
@@ -102,9 +102,9 @@ def detect_ssrf(code):
 
 
 # ## 2. CWE-347
-def detect_improper_signature_verification(code):
+def detect_improper_signature_verification(code, tree):
     """Detect CWE-347 (Improper Verification of Cryptographic Signature) vulnerabilities in Python code."""
-    tree = ast.parse(code)
+    # tree = ast.parse(code)
     
     # Look for functions that handle signatures
     signature_functions = []
@@ -241,9 +241,9 @@ def detect_improper_signature_verification(code):
 
 
 # ## 3. CSW-863
-def detect_incorrect_authorization(code):
+def detect_incorrect_authorization(code, tree):
     """Detect CWE-863 (Incorrect Authorization) vulnerabilities in Python code."""
-    tree = ast.parse(code)
+    # tree = ast.parse(code)
     
     # Define role-related parameter names
     role_param_patterns = [
@@ -361,9 +361,9 @@ def detect_incorrect_authorization(code):
 
 
 # ## 4. CWE-352
-def detect_csrf_vulnerabilities(code):
+def detect_csrf_vulnerabilities(code, tree):
     """Detect CWE-352 (Cross-Site Request Forgery) vulnerabilities in Python code."""
-    tree = ast.parse(code)
+    # tree = ast.parse(code)
     
     # Define patterns related to web request handling
     request_param_patterns = [
@@ -501,9 +501,9 @@ def detect_csrf_vulnerabilities(code):
 
 
 # ## 5. CWE-770
-def detect_resource_allocation_without_limits(code):
+def detect_resource_allocation_without_limits(code, tree):
     """Detect CWE-770 (Allocation of Resources Without Limits or Throttling) vulnerabilities in Python code."""
-    tree = ast.parse(code)
+    # tree = ast.parse(code)
     
     # Define patterns related to resource allocation
     resource_allocation_patterns = [
@@ -711,11 +711,11 @@ def detect_resource_allocation_without_limits(code):
 
 
 # ## 6. CWE-77
-def detect_command_injection(code):
+def detect_command_injection(code, tree):
     """
     Detect CWE-77 (Command Injection), CWE-79 (XSS) and related vulnerabilities in Python code.
     """
-    tree = ast.parse(code)
+    # tree = ast.parse(code)
     vulnerable_functions = []
     
     # Lists of functions and patterns
@@ -1103,7 +1103,7 @@ def detect_command_injection(code):
 
 
 # ## 7. CWE-94
-def detect_code_injection(source_code: str) -> List[Dict[str, Union[str, int]]]:
+def detect_code_injection(source_code: str, tree: str) -> List[Dict[str, Union[str, int]]]:
     """
     Static analysis function to detect potential CWE-94 (Code Injection) vulnerabilities.
     
@@ -1120,7 +1120,7 @@ def detect_code_injection(source_code: str) -> List[Dict[str, Union[str, int]]]:
     
     try:
         # Parse the source code into an AST
-        tree = ast.parse(source_code)
+        # tree = ast.parse(source_code)
         
         # Define unsafe functions that can lead to code injection
         unsafe_functions = ['eval', 'exec', 'compile', '__import__']
@@ -1346,7 +1346,7 @@ def detect_concatenation_vulnerabilities(source_code: str, vulnerabilities: List
 
 
 # ## 8. CWE-1333
-def detect_inefficient_regex(code_string):
+def detect_inefficient_regex(code_string, tree):
     """
     Static analysis detector for CWE-1333: Inefficient Regular Expression Complexity.
     Identifies regex patterns that may cause catastrophic backtracking.
@@ -1440,7 +1440,7 @@ def detect_inefficient_regex(code_string):
     
     # Parse the code to find regex patterns
     try:
-        tree = ast.parse(code_string)
+        # tree = ast.parse(code_string)
         
         # Find all regex definitions in the code
         for node in ast.walk(tree):
@@ -1523,7 +1523,7 @@ def detect_inefficient_regex(code_string):
 
 
 # ## 9. CWE-502
-def detect_unsafe_deserialization(code_string):
+def detect_unsafe_deserialization(code_string, tree):
     """
     Static analysis function to detect CWE-502 Deserialization of Untrusted Data vulnerabilities.
     Specifically looks for unsafe use of pickle module which can lead to arbitrary code execution.
@@ -1554,7 +1554,7 @@ def detect_unsafe_deserialization(code_string):
     
     # AST-based analysis
     try:
-        tree = ast.parse(code_string)
+        # tree = ast.parse(code_string)
         
         for node in ast.walk(tree):
             # Look for function definitions that might use pickle
@@ -1646,7 +1646,7 @@ def detect_unsafe_deserialization(code_string):
 
 
 # ## 10. CWE-79
-def detect_xss_vulnerability(code_str):
+def detect_xss_vulnerability(code_str, parsed):
     """
     Detects potential CWE-79 (Cross-site Scripting) vulnerabilities in Python code.
     
@@ -1971,7 +1971,7 @@ def detect_missing_authorization(func_code: str) -> list:
 
 
 # ## 12. CWE-74
-def detect_injection(code_snippet: str) -> list:
+def detect_injection(code_snippet: str, tree: str) -> list:
     """
     Static analysis function to detect CWE-74 vulnerabilities (Improper Neutralization 
     of Special Elements in Output Used by a Downstream Component).
@@ -1990,7 +1990,7 @@ def detect_injection(code_snippet: str) -> list:
     # Parse code snippet
     try:
         lines = code_snippet.split('\n')
-        tree = ast.parse(code_snippet)
+        # tree = ast.parse(code_snippet)
     except SyntaxError:
         return []  # Return empty list for unparseable code
     
@@ -2206,7 +2206,7 @@ def detect_info_exposure(code_str):
 
 
 # ## 14. CWE-95
-def detect_eval_injection(code_string: str) -> list:
+def detect_eval_injection(code_string: str, parsed_code: str) -> list:
     """
     Static analysis function to detect potential eval injection vulnerabilities (CWE-95).
     
@@ -2235,7 +2235,7 @@ def detect_eval_injection(code_string: str) -> list:
     
     try:
         # Parse the code into an AST
-        parsed_code = ast.parse(code_string)
+        # parsed_code = ast.parse(code_string)
         
         # Class to detect secure eval patterns within a function
         class SecureEvalDetector(ast.NodeVisitor):
@@ -2461,7 +2461,7 @@ def detect_eval_injection(code_string: str) -> list:
 
 
 # ## 15. CWE-601
-def detect_open_redirect(code_string):
+def detect_open_redirect(code_string, tree):
     """
     Analyzes Python code to detect potential CWE-601 (Open Redirect) vulnerabilities.
     
@@ -2483,10 +2483,10 @@ def detect_open_redirect(code_string):
     vulnerabilities = []
     
     # Parse the code into an AST
-    try:
-        tree = ast.parse(code_string)
-    except SyntaxError:
-        return [{"line": 0, "description": "Could not parse code due to syntax error"}]
+    # try:
+    #     tree = ast.parse(code_string)
+    # except SyntaxError:
+    #     return [{"line": 0, "description": "Could not parse code due to syntax error"}]
     
     # Helper function to check if a function contains thorough security measures
     def contains_complete_url_validation(node):
@@ -2737,7 +2737,7 @@ def detect_insecure_crypto_algorithm(code: str) -> list:
 
 
 # ## 17. CWE-915
-def detect_unsafe_object_modification(code_string):
+def detect_unsafe_object_modification(code_string, tree):
     """
     Static analysis function to detect CWE-915: Improperly Controlled Modification 
     of Dynamically-Determined Object Attributes.
@@ -2756,10 +2756,10 @@ def detect_unsafe_object_modification(code_string):
     vulnerabilities = []
     
     # Parse the code into an AST
-    try:
-        tree = ast.parse(code_string)
-    except SyntaxError as e:
-        return [{"line": e.lineno, "description": f"Syntax error: {str(e)}"}]
+    # try:
+    #     tree = ast.parse(code_string)
+    # except SyntaxError as e:
+    #     return [{"line": e.lineno, "description": f"Syntax error: {str(e)}"}]
     
     class VulnerabilityVisitor(ast.NodeVisitor):
         def visit_FunctionDef(self, node):
@@ -2851,24 +2851,74 @@ def run_all_detectors(code_string):
     Returns:
         list: A consolidated list of detected vulnerabilities from all detectors
     """
+    # tree = ast.parse(code_string)
+    try:
+        tree = ast.parse(code_string)
+    except SyntaxError:
+        return [{"line": 0, "description": "Could not parse code due to syntax error"}]
     all_vulnerabilities = []
     # Run each detector and collect results
-    all_vulnerabilities.extend(detect_ssrf(code_string)) # 1. SSRF
-    all_vulnerabilities.extend(detect_improper_signature_verification(code_string)) # 2. Improper Signature Verification
-    all_vulnerabilities.extend(detect_incorrect_authorization(code_string)) # 3. Incorrect Authorization
-    all_vulnerabilities.extend(detect_csrf_vulnerabilities(code_string)) # 4. CSRF
-    all_vulnerabilities.extend(detect_resource_allocation_without_limits(code_string)) # 5. Resource Allocation without Limits
-    all_vulnerabilities.extend(detect_command_injection(code_string)) # 6. Command Injection
-    all_vulnerabilities.extend(detect_code_injection(code_string)) # 7. Code Injection
-    all_vulnerabilities.extend(detect_inefficient_regex(code_string)) # 8. Inefficient Regular Expression Complexity
-    all_vulnerabilities.extend(detect_unsafe_deserialization(code_string)) # 9. Unsafe Deserialization
-    all_vulnerabilities.extend(detect_xss_vulnerability(code_string)) # 10. XSS
+    all_vulnerabilities.extend(detect_ssrf(code_string, tree)) # 1. SSRF
+    all_vulnerabilities.extend(detect_improper_signature_verification(code_string, tree)) # 2. Improper Signature Verification
+    all_vulnerabilities.extend(detect_incorrect_authorization(code_string, tree)) # 3. Incorrect Authorization
+    all_vulnerabilities.extend(detect_csrf_vulnerabilities(code_string, tree)) # 4. CSRF
+    all_vulnerabilities.extend(detect_resource_allocation_without_limits(code_string, tree)) # 5. Resource Allocation without Limits
+    all_vulnerabilities.extend(detect_command_injection(code_string, tree)) # 6. Command Injection
+    all_vulnerabilities.extend(detect_code_injection(code_string, tree)) # 7. Code Injection
+    all_vulnerabilities.extend(detect_inefficient_regex(code_string, tree)) # 8. Inefficient Regular Expression Complexity
+    all_vulnerabilities.extend(detect_unsafe_deserialization(code_string, tree)) # 9. Unsafe Deserialization
+    all_vulnerabilities.extend(detect_xss_vulnerability(code_string, tree)) # 10. XSS
     all_vulnerabilities.extend(detect_missing_authorization(code_string)) # 11. Missing Authorization
-    all_vulnerabilities.extend(detect_injection(code_string)) # 12. Injection
+    all_vulnerabilities.extend(detect_injection(code_string, tree)) # 12. Injection
     all_vulnerabilities.extend(detect_info_exposure(code_string)) # 13. Information Exposure
-    all_vulnerabilities.extend(detect_eval_injection(code_string)) # 14. Eval Injection
-    all_vulnerabilities.extend(detect_open_redirect(code_string)) # 15. Open Redirect
+    all_vulnerabilities.extend(detect_eval_injection(code_string, tree)) # 14. Eval Injection
+    all_vulnerabilities.extend(detect_open_redirect(code_string, tree)) # 15. Open Redirect
     all_vulnerabilities.extend(detect_insecure_crypto_algorithm(code_string)) # 16. Insecure Crypto Algorithm
-    all_vulnerabilities.extend(detect_unsafe_object_modification(code_string)) # 17. Unsafe Object Modification
+    all_vulnerabilities.extend(detect_unsafe_object_modification(code_string, tree)) # 17. Unsafe Object Modification
     
     return all_vulnerabilities
+
+
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+DETECTORS = [
+    ("ssrf", detect_ssrf),
+    ("improper_signature_verification", detect_improper_signature_verification),
+    ("incorrect_authorization", detect_incorrect_authorization),
+    ("csrf", detect_csrf_vulnerabilities),
+    ("resource_allocation_without_limits", detect_resource_allocation_without_limits),
+    ("command_injection", detect_command_injection),
+    ("code_injection", detect_code_injection),
+    ("inefficient_regex", detect_inefficient_regex),
+    ("unsafe_deserialization", detect_unsafe_deserialization),
+    ("xss", detect_xss_vulnerability),
+    ("missing_authorization", detect_missing_authorization),
+    ("injection", detect_injection),
+    ("info_exposure", detect_info_exposure),
+    ("eval_injection", detect_eval_injection),
+    ("open_redirect", detect_open_redirect),
+    ("insecure_crypto_algorithm", detect_insecure_crypto_algorithm),
+    ("unsafe_object_modification", detect_unsafe_object_modification),
+]
+
+def run_all_detectors_parallel(code_string: str, max_workers: int = 8):
+    all_vulnerabilities = []
+    errors = []
+
+    with ThreadPoolExecutor(max_workers=max_workers) as ex:
+        future_to_name = {
+            ex.submit(fn, code_string): name
+            for name, fn in DETECTORS
+        }
+
+        for fut in as_completed(future_to_name):
+            name = future_to_name[fut]
+            try:
+                res = fut.result()
+                if res:
+                    all_vulnerabilities.extend(res)
+            except Exception as e:
+                # keep going even if one detector crashes
+                errors.append({"detector": name, "error": repr(e)})
+
+    return all_vulnerabilities, errors

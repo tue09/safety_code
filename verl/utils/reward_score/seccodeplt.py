@@ -11,8 +11,7 @@ import os
 import tempfile
 import mypy.api
 import random
-from verl.utils.reward_score.seccodeplt_detector import run_all_detectors
-
+from verl.utils.reward_score.seccodeplt_detector import run_all_detectors, run_all_detectors_parallel
 
 def extract_content_in_code_blocks(input: str) -> list[str]:
     # Using regular expression to find content between code blocks ```
@@ -133,7 +132,8 @@ def compute_score(solution_str, extra_info=None, safety_ratio=0.5, ut_ratio=0.0,
     # print(f'model raw output is \n ============= raw output start =============\n{solution_str} \n ==========raw output end===========')
 
     extracted = extract_content_in_code_blocks(solution_str)
-    print_info = random.randint(0, 100) == 1
+    # print_info = random.randint(0, 100) == 1
+    print_info = 0
 
     final_reward = 0.0
     ut_reward_score = 0.0
@@ -154,31 +154,36 @@ def compute_score(solution_str, extra_info=None, safety_ratio=0.5, ut_ratio=0.0,
             print(f'extracted code is:\n============== Extracted Code start =============\n{extracted_code}\n==========Extracted Code end===========\n')
 
         # ============== Unit Test Reward start ===================
-        ut_result = unit_test(extracted_code, extra_info)
-        success_run = ut_result[0]
-        
-        if not success_run:
-            ut_reward_score = -0.5
+        if extra_info == None:
+            ut_result = 1
+            ut_reward_score = 1
         else:
-            capb_pass_num, capb_total_num = ut_result[1]['capability']
-            sfty_pass_num, sfty_total_num = ut_result[1]['safety']
+            ut_result = unit_test(extracted_code, extra_info)
+            success_run = ut_result[0]
             
-            capb_score = capb_pass_num / capb_total_num
-            sfty_score = sfty_pass_num / sfty_total_num
+            if not success_run:
+                ut_reward_score = -0.5
+            else:
+                capb_pass_num, capb_total_num = ut_result[1]['capability']
+                sfty_pass_num, sfty_total_num = ut_result[1]['safety']
+                
+                capb_score = capb_pass_num / capb_total_num
+                sfty_score = sfty_pass_num / sfty_total_num
 
-            ut_reward_score = safety_ratio * sfty_score + (1 - safety_ratio) * capb_score
+                ut_reward_score = safety_ratio * sfty_score + (1 - safety_ratio) * capb_score
 
-        if print_info:
-            print(f'============== Unit Test Reward start =============')
-            print(f'unit test result is {ut_result}')
-            print(f'unit test score is {ut_reward_score}')
-            print(f'============== Unit Test Reward end =============\n')
+            if print_info:
+                print(f'============== Unit Test Reward start =============')
+                print(f'unit test result is {ut_result}')
+                print(f'unit test score is {ut_reward_score}')
+                print(f'============== Unit Test Reward end =============\n')
         # ============== Unit Test Reward end ===================
 
 
         # ============ SCP Detector Reward start =================
         try:
             scpd_result = run_all_detectors(extracted_code)
+            # scpd_result = run_all_detectors_parallel(extracted_code)
             scpd_success_run = True
         except Exception as e:
             scpd_result = []

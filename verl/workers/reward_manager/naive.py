@@ -16,11 +16,22 @@ from verl import DataProto
 from verl.utils.reward_score import _default_compute_score
 import torch
 import multiprocessing
+# import multiprocessing as mp
 import time
 import datetime
 import signal
 from tqdm import tqdm
+import os
+from functools import partial
+from concurrent.futures import ThreadPoolExecutor, as_completed, ProcessPoolExecutor
+import time
 
+def _normalize_score(score):
+    """Always return (main, ut, mypy, scpd) floats."""
+    if isinstance(score, list):
+        s, ut, my, sc = score
+        return float(s), float(ut), float(my), float(sc)
+    return float(score), 0.0, 0.0, 0.0
 def handler(signum, frame):
     raise TimeoutError("Function timed out!")
 
@@ -60,6 +71,11 @@ class NaiveRewardManager:
         return score
 
     def __call__(self, data: DataProto):
+        if True:  # (TODO) Add by TueLDT1; The current code by ReaL authors really net to optimize by parallelism and batching 
+            # because the for loop in the original code require a lot of training time
+            print(f'!!!![self.reward_setting] = {self.reward_setting} but the current for loop to compute reward require a huge time => Yeah0')
+            return self.call_for_seccodeplt_fast(data)
+        
         if self.reward_setting is None:
             print(f'!!!![self.reward_setting] = {self.reward_setting} => Yeah1')
             return self.call_for_seccodeplt(data)
@@ -106,6 +122,7 @@ class NaiveRewardManager:
 
             extra_info = data_item.non_tensor_batch.get('extra_info', None)
 
+            st_t = time.time()
             score = self.compute_score(
                 data_source=data_source,
                 solution_str=sequences_str,
@@ -114,7 +131,9 @@ class NaiveRewardManager:
                 config=self.config,
                 eval_mode=self.eval_mode,
             )
-
+            end_t = time.time()
+            elapse = end_t - st_t
+            print(f'[elapsed time] = {elapse}')
             if isinstance(score, list):
                 score, ut_score, mypy_score, scpd_score = score  # for seccodeplt
             else:
@@ -133,6 +152,134 @@ class NaiveRewardManager:
             if already_print_data_sources[data_source] < self.num_examine:
                 already_print_data_sources[data_source] += 1
                 print(sequences_str)
+
+        return reward_tensor, reward_tensor_ut, reward_tensor_mypy, reward_tensor_scpd
+
+
+    def _seccodeplt_score_worker(self, args):
+        data_source, sequences_str, ground_truth, extra_info, config, eval_mode = args
+
+        # Import inside worker (safe for multiprocessing)
+        # from verl.utils.reward_score.seccodeplt import compute_score
+
+        # t0 = time.time()
+        score = self.compute_score(
+            data_source=data_source,
+            solution_str=sequences_str,
+            ground_truth=ground_truth,
+            extra_info=extra_info,
+            config=config,
+            eval_mode=eval_mode,
+        )
+        return score
+
+
+    def call_for_seccodeplt_fast(self, data):
+        """Fast version: preprocess -> parallel scoring -> writeback"""
+
+        # If there is rm score, we directly return rm score. Otherwise, we compute via rm_score_fn
+        if "rm_scores" in data.batch.keys():
+            return data.batch["rm_scores"]
+
+        reward_tensor = torch.zeros_like(data.batch["responses"], dtype=torch.float32)
+        reward_tensor_ut = torch.zeros_like(data.batch["responses"], dtype=torch.float32)
+        reward_tensor_mypy = torch.zeros_like(data.batch["responses"], dtype=torch.float32)
+        reward_tensor_scpd = torch.zeros_like(data.batch["responses"], dtype=torch.float32)
+
+        already_print_data_sources = {}
+
+        # ============================================================
+        # Phase 1) Preprocess everything (decode, meta, lengths)
+        # ============================================================
+        packed = []
+        print(f'Phase 1/3: Preprocess + decode ...')
+        for i in range(len(data)):
+            data_item = data[i]  # DataProtoItem
+
+            prompt_ids = data_item.batch["prompts"]
+            prompt_length = prompt_ids.shape[-1]
+
+            valid_prompt_length = int(data_item.batch["attention_mask"][:prompt_length].sum().item())
+            valid_prompt_ids = prompt_ids[-valid_prompt_length:] if valid_prompt_length > 0 else prompt_ids[:0]
+
+            response_ids = data_item.batch["responses"]
+            valid_response_length = int(data_item.batch["attention_mask"][prompt_length:].sum().item())
+            valid_response_ids = response_ids[:valid_response_length] if valid_response_length > 0 else response_ids[:0]
+
+            sequences = torch.cat((valid_prompt_ids, valid_response_ids), dim=0)
+            sequences_str = self.tokenizer.decode(sequences)
+
+            ground_truth = data_item.non_tensor_batch["reward_model"]["ground_truth"]
+            data_source = data_item.non_tensor_batch["data_source"]
+            extra_info = data_item.non_tensor_batch.get("extra_info", None)
+
+            packed.append(
+                {
+                    "i": i,
+                    "valid_response_length": valid_response_length,
+                    "sequences_str": sequences_str,
+                    "data_source": data_source,
+                    "ground_truth": ground_truth,
+                    "extra_info": extra_info,
+                }
+            )
+
+        # ============================================================
+        # Phase 2) Parallel compute_score for all items
+        # ============================================================
+        max_workers = max(1, int(os.cpu_count() / 2))
+        args_list = [
+            (
+                x["data_source"],
+                x["sequences_str"],
+                x["ground_truth"],
+                x["extra_info"],
+                self.config,
+                self.eval_mode,
+            )
+            for x in packed
+        ]
+
+        # Use fork on Linux to reduce overhead (no __main__ guard needed)
+        ctx = multiprocessing.get_context("fork")
+
+        scored = []
+        print(f'Phase 2/3: Scoring (parallel, workers={max_workers}) ...')
+        with ProcessPoolExecutor(max_workers=max_workers, mp_context=ctx) as ex:
+            for out in ex.map(self._seccodeplt_score_worker, args_list, chunksize=4):
+                scored.append(out)
+
+        # ============================================================
+        # Phase 3) Write back reward tensors + printing
+        # ============================================================
+        print('Phase 3/3: Writeback ...')
+        for x, score in zip(packed, scored):
+            i = x["i"]
+            valid_response_length = x["valid_response_length"]
+
+            # print(f"[elapsed time] = {elapsed}")
+
+            if isinstance(score, list):
+                score, ut_score, mypy_score, scpd_score = score
+            else:
+                ut_score = 0.0
+                mypy_score = 0.0
+                scpd_score = 0.0
+
+            if valid_response_length > 0:
+                last_pos = valid_response_length - 1
+                reward_tensor[i, last_pos] = float(score)
+                reward_tensor_ut[i, last_pos] = float(ut_score)
+                reward_tensor_mypy[i, last_pos] = float(mypy_score)
+                reward_tensor_scpd[i, last_pos] = float(scpd_score)
+
+            data_source = x["data_source"]
+            if data_source not in already_print_data_sources:
+                already_print_data_sources[data_source] = 0
+
+            if already_print_data_sources[data_source] < self.num_examine:
+                already_print_data_sources[data_source] += 1
+                print(x["sequences_str"])
 
         return reward_tensor, reward_tensor_ut, reward_tensor_mypy, reward_tensor_scpd
 
