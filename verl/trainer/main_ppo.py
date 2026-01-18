@@ -111,6 +111,7 @@ def main_task(config, compute_score=None):
         mapping[Role.RewardModel] = global_pool_id
 
     reward_manager_name = config.reward_model.get("reward_manager", "naive")
+    print(f'77777 [reward_manager_name] = {reward_manager_name}')
     if reward_manager_name == "naive":
         from verl.workers.reward_manager import NaiveRewardManager
 

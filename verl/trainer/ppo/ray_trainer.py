@@ -871,6 +871,7 @@ class RayPPOTrainer(object):
 
         for epoch in range(self.config.trainer.total_epochs):
             for batch_dict in self.train_dataloader:
+                print(f'##### [global_steps] = {self.global_steps} || self.use_critic: {self.use_critic} and self.use_reference_policy = {self.use_reference_policy}')
                 metrics = {}
                 timing_raw = {}
 
@@ -881,6 +882,7 @@ class RayPPOTrainer(object):
 
                 with _timer('step', timing_raw):
                     # generate a batch
+                    print(f'!!!! [Generating trajectories ...]')
                     with _timer('gen', timing_raw):
                         gen_batch_output = self.actor_rollout_wg.generate_sequences(gen_batch)
 
@@ -935,31 +937,36 @@ class RayPPOTrainer(object):
                         # compute scores. Support both model and function-based.
                         # We first compute the scores using reward model. Then, we call reward_fn to combine
                         # the results from reward model and rule-based results.
+                        print(f'!!!! [Computing reward ...] and self.use_rm = {self.use_rm}')
                         if self.use_rm:
                             # we first compute reward model score
                             reward_tensor = self.rm_wg.compute_rm_score(batch)
                             batch = batch.union(reward_tensor)
-
+                        print(f'!!!! [Done Computing reward by rm ...]')
                         # we combine with rule-based rm
                         reward_tensor, _, _, _ = self.reward_fn(batch)
                         batch.batch['token_level_scores'] = reward_tensor
-
+                        print(f'!!!! [Done Computing reward by rule-based ...]')
                         # compute rewards. apply_kl_penalty if available
                         if not self.config.actor_rollout_ref.actor.get('use_kl_loss', False):
+                            print(f'!!!! [Computing KL ...]')
                             batch, kl_metrics = apply_kl_penalty(batch,
                                                                  kl_ctrl=self.kl_ctrl,
                                                                  kl_penalty=self.config.algorithm.kl_penalty)
                             metrics.update(kl_metrics)
                         else:
+                            print(f'!!!! [Do not computing KL, pass to advantage]')
                             batch.batch['token_level_rewards'] = batch.batch['token_level_scores']
 
                         # compute advantages, executed on the driver process
+                        print(f'!!!! [Computing adv ...]')
                         batch = compute_advantage(batch,
                                                   adv_estimator=self.config.algorithm.adv_estimator,
                                                   gamma=self.config.algorithm.gamma,
                                                   lam=self.config.algorithm.lam,
                                                   num_repeat=self.config.actor_rollout_ref.rollout.n)
-
+                    print(f'!!!! [Done Computing adv]')
+                    
                     # update critic
                     if self.use_critic:
                         with _timer('update_critic', timing_raw):
@@ -969,11 +976,16 @@ class RayPPOTrainer(object):
 
                     # implement critic warmup
                     if self.config.trainer.critic_warmup <= self.global_steps:
+                        print(f'!!!! Yeah')
                         # update actor
+                        print(f'!!!! [Updating actor ...]')
                         with _timer('update_actor', timing_raw):
                             actor_output = self.actor_rollout_wg.update_actor(batch)
+                        print(f'!!!! [Done Updating actor ...]')
                         actor_output_metrics = reduce_metrics(actor_output.meta_info['metrics'])
                         metrics.update(actor_output_metrics)
+                    else:
+                        print(f'!!!! No yeah')
 
                     # validate
                     if self.val_reward_fn is not None and self.config.trainer.test_freq > 0 and \

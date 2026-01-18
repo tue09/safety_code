@@ -19,7 +19,7 @@ import multiprocessing
 import time
 import datetime
 import signal
-
+from tqdm import tqdm
 
 def handler(signum, frame):
     raise TimeoutError("Function timed out!")
@@ -61,8 +61,10 @@ class NaiveRewardManager:
 
     def __call__(self, data: DataProto):
         if self.reward_setting is None:
+            print(f'!!!![self.reward_setting] = {self.reward_setting} => Yeah1')
             return self.call_for_seccodeplt(data)
         else:
+            print(f'!!!![self.reward_setting] = {self.reward_setting} => Yeah2')
             return self.call_for_safecode_apps(data)
 
 
@@ -80,7 +82,7 @@ class NaiveRewardManager:
 
         already_print_data_sources = {}
 
-        for i in range(len(data)):
+        for i in tqdm(range(len(data)), desc='Computing reward for batch ...'):
             data_item = data[i]  # DataProtoItem
 
             prompt_ids = data_item.batch['prompts']
