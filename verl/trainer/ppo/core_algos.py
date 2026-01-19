@@ -129,7 +129,6 @@ def compute_grpo_outcome_advantage(token_level_rewards: torch.Tensor,
     """
     response_length = token_level_rewards.shape[-1]
     scores = token_level_rewards.sum(dim=-1)
-
     id2score = defaultdict(list)
     id2mean = {}
     id2std = {}
@@ -152,6 +151,84 @@ def compute_grpo_outcome_advantage(token_level_rewards: torch.Tensor,
         scores = scores.unsqueeze(-1).tile([1, response_length]) * eos_mask
 
     return scores, scores
+
+## (TODO) Add by TueLDT1
+def compute_grpo_moo_outcome_advantage(token_level_rewards: torch.Tensor,
+                                    util_token_level_rewards: torch.Tensor,
+                                    safe_token_level_rewards: torch.Tensor,
+                                   eos_mask: torch.Tensor,
+                                   index: torch.Tensor,
+                                   epsilon: float = 1e-6):
+    """
+    Compute advantage for GRPO, operating only on Outcome reward 
+    (with only one scalar reward for each response).
+    Args:
+        token_level_rewards: `(torch.Tensor)`
+            shape: (bs, response_length)
+        util_token_level_rewards: `(torch.Tensor)`
+            shape: (bs, response_length)
+        safe_token_level_rewards: `(torch.Tensor)`
+            shape: (bs, response_length)
+        eos_mask: `(torch.Tensor)`
+            shape: (bs, response_length)
+    
+    Returns:
+        advantages: `(torch.Tensor)`
+            shape: (bs, response_length)
+        Returns: `(torch.Tensor)`
+            shape: (bs, response_length)
+    """
+    response_length = token_level_rewards.shape[-1]
+    scores_util = util_token_level_rewards.sum(dim=-1)
+    id2score_util = defaultdict(list)
+    id2mean_util = {}
+    id2std_util = {}
+
+    scores_safe = safe_token_level_rewards.sum(dim=-1)
+    id2score_safe = defaultdict(list)
+    id2mean_safe = {}
+    id2std_safe = {}
+    
+    with torch.no_grad():
+        ## Computing advantage for functionality
+        bsz = scores_util.shape[0]
+        for i in range(bsz):
+            id2score_util[index[i]].append(scores_util[i])
+        for idx in id2score_util:
+            if len(id2score_util[idx]) == 1:
+                id2mean_util[idx] = torch.tensor(0.0)
+                id2std_util[idx] = torch.tensor(1.0)
+            elif len(id2score_util[idx]) > 1:
+                id2mean_util[idx] = torch.mean(torch.tensor(id2score_util[idx]))
+                id2std_util[idx] = torch.std(torch.tensor([id2score_util[idx]]))
+            else:
+                raise ValueError(f"no score in prompt index: {idx}")
+        for i in range(bsz):
+            scores_util[i] = (scores_util[i] - id2mean_util[index[i]]) / (id2std_util[index[i]] + epsilon)
+        scores_util = scores_util.unsqueeze(-1).tile([1, response_length]) * eos_mask
+
+    # with torch.no_grad():
+        ## Computing advantage for safety
+        bsz = scores_safe.shape[0]
+        for i in range(bsz):
+            id2score_safe[index[i]].append(scores_safe[i])
+        for idx in id2score_safe:
+            if len(id2score_safe[idx]) == 1:
+                id2mean_safe[idx] = torch.tensor(0.0)
+                id2std_safe[idx] = torch.tensor(1.0)
+            elif len(id2score_safe[idx]) > 1:
+                id2mean_safe[idx] = torch.mean(torch.tensor(id2score_safe[idx]))
+                id2std_safe[idx] = torch.std(torch.tensor([id2score_safe[idx]]))
+            else:
+                raise ValueError(f"no score in prompt index: {idx}")
+        for i in range(bsz):
+            scores_safe[i] = (scores_safe[i] - id2mean_safe[index[i]]) / (id2std_safe[index[i]] + epsilon)
+        scores_safe = scores_safe.unsqueeze(-1).tile([1, response_length]) * eos_mask
+
+        # Combine 2 scores
+        scores = scores_util + scores_safe 
+    # print(f'#### Using MOO for advantage: scores_util = {scores_util}, scores_safe = {scores_safe} => scores = {scores}')
+    return scores, scores, scores_util, scores_safe
 
 
 def compute_reinforce_plus_plus_outcome_advantage(token_level_rewards: torch.Tensor, eos_mask: torch.Tensor,
@@ -257,6 +334,62 @@ def compute_policy_loss(old_log_prob, log_prob, advantages, eos_mask, cliprange)
     pg_clipfrac = verl_F.masked_mean(torch.gt(pg_losses2, pg_losses).float(), eos_mask)
     return pg_loss, pg_clipfrac, ppo_kl
 
+def compute_policy_loss_moo(old_log_prob, log_prob, advantages, advantages_util, advantages_safe, eos_mask, cliprange):
+    """Adapted from https://github.com/huggingface/trl/blob/main/trl/trainer/ppo_trainer.py#L1122
+
+    Args:
+        old_log_prob: `(torch.Tensor)`
+            shape: (bs, response_length)
+        log_prob: `(torch.Tensor)`
+            shape: (bs, response_length)
+        advantages: `(torch.Tensor)`
+            shape: (bs, response_length)
+        advantages_util: `(torch.Tensor)`
+            shape: (bs, response_length)
+        advantages_safe: `(torch.Tensor)`
+            shape: (bs, response_length)
+        eos_mask: `(torch.Tensor)`
+            shape: (bs, response_length)
+        cliprange: (float)
+            The clip range used in PPO. See https://arxiv.org/abs/1707.06347
+
+    Returns:
+        pg_loss: `a scalar torch.Tensor`
+            policy gradient loss computed via PPO
+        pg_clipfrac: (float)
+            a float number indicating the fraction of policy gradient loss being clipped
+
+    """
+    negative_approx_kl = log_prob - old_log_prob
+    ratio = torch.exp(negative_approx_kl)
+    ppo_kl = verl_F.masked_mean(-negative_approx_kl, eos_mask)
+
+    # pg_losses = -advantages * ratio
+    # pg_losses2 = -advantages * torch.clamp(ratio, 1.0 - cliprange, 1.0 + cliprange)
+
+    # pg_loss = verl_F.masked_mean(torch.max(pg_losses, pg_losses2), eos_mask)
+    # pg_clipfrac = verl_F.masked_mean(torch.gt(pg_losses2, pg_losses).float(), eos_mask)
+
+    ## For util
+    pg_losses_util = -advantages_util * ratio
+    pg_losses_util2 = -advantages_util * torch.clamp(ratio, 1.0 - cliprange, 1.0 + cliprange)
+
+    pg_loss_util = verl_F.masked_mean(torch.max(pg_losses_util, pg_losses_util2), eos_mask)
+    pg_clipfrac_util = verl_F.masked_mean(torch.gt(pg_losses_util2, pg_losses_util).float(), eos_mask)
+
+    ## For safe
+    pg_losses_safe = -advantages_safe * ratio
+    pg_losses_safe2 = -advantages_safe * torch.clamp(ratio, 1.0 - cliprange, 1.0 + cliprange)
+
+    pg_loss_safe = verl_F.masked_mean(torch.max(pg_losses_safe, pg_losses_safe2), eos_mask)
+    pg_clipfrac_safe = verl_F.masked_mean(torch.gt(pg_losses_safe2, pg_losses_safe).float(), eos_mask)
+
+    # Combine
+    pg_loss = (pg_loss_util + pg_loss_safe) / 2
+    # print(f'---- pg_loss_util = {pg_loss_util}; pg_loss_safe = {pg_loss_safe} => pg_loss = {pg_loss}')
+    pg_clipfrac = (pg_clipfrac_util + pg_clipfrac_safe) / 2
+
+    return pg_loss, pg_clipfrac, ppo_kl, pg_loss_util, pg_loss_safe
 
 def compute_entropy_loss(logits, eos_mask):
     """Compute Categorical entropy loss

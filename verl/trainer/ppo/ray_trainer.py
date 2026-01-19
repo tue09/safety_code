@@ -145,6 +145,24 @@ def compute_advantage(data: DataProto, adv_estimator, gamma=1.0, lam=1.0, num_re
                                                                         index=index)
         data.batch['advantages'] = advantages
         data.batch['returns'] = returns
+    elif adv_estimator == 'grpo_moo':
+        token_level_rewards = data.batch['token_level_rewards']
+        util_token_level_rewards = data.batch['util_token_level_rewards']
+        safe_token_level_rewards = data.batch['safe_token_level_rewards']
+        index = data.non_tensor_batch['uid']
+        responses = data.batch['responses']
+        response_length = responses.size(-1)
+        attention_mask = data.batch['attention_mask']
+        response_mask = attention_mask[:, -response_length:]
+        advantages, returns, advantages_util, advantages_safe = core_algos.compute_grpo_moo_outcome_advantage(token_level_rewards=token_level_rewards,
+                                                                        util_token_level_rewards=util_token_level_rewards,
+                                                                        safe_token_level_rewards=safe_token_level_rewards,
+                                                                        eos_mask=response_mask,
+                                                                        index=index)
+        data.batch['advantages'] = advantages
+        data.batch['advantages_util'] = advantages_util
+        data.batch['advantages_safe'] = advantages_safe
+        data.batch['returns'] = returns
     elif adv_estimator == 'reinforce_plus_plus':
         token_level_rewards = data.batch['token_level_rewards']
         responses = data.batch['responses']
@@ -369,6 +387,8 @@ class RayPPOTrainer(object):
         if self.config.algorithm.adv_estimator == 'gae':
             self.use_critic = True
         elif self.config.algorithm.adv_estimator == 'grpo':
+            self.use_critic = False
+        elif self.config.algorithm.adv_estimator == 'grpo_moo':
             self.use_critic = False
         elif self.config.algorithm.adv_estimator == 'reinforce_plus_plus':
             self.use_critic = False
@@ -944,8 +964,10 @@ class RayPPOTrainer(object):
                             batch = batch.union(reward_tensor)
                         # print(f'!!!! [Done Computing reward by rm ...]')
                         # we combine with rule-based rm
-                        reward_tensor, _, _, _ = self.reward_fn(batch)
+                        reward_tensor, ut_rewards_tensor, mypy_rewards_tensor, scpd_rewards_tensor = self.reward_fn(batch)
                         batch.batch['token_level_scores'] = reward_tensor
+                        batch.batch['util_token_level_rewards'] = ut_rewards_tensor
+                        batch.batch['safe_token_level_rewards'] = scpd_rewards_tensor
                         # print(f'!!!! [Done Computing reward by rule-based ...]')
                         # compute rewards. apply_kl_penalty if available
                         if not self.config.actor_rollout_ref.actor.get('use_kl_loss', False):
@@ -957,6 +979,8 @@ class RayPPOTrainer(object):
                         else:
                             # print(f'!!!! [Do not computing KL, pass to advantage]')
                             batch.batch['token_level_rewards'] = batch.batch['token_level_scores']
+                            # batch.batch['util_token_level_rewards'] = batch.batch['util_token_level_rewards']
+                            # batch.batch['safe_token_level_rewards'] = batch.batch['safe_token_level_rewards']
 
                         # compute advantages, executed on the driver process
                         # print(f'!!!! [Computing adv ...]')

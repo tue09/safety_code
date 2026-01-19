@@ -95,8 +95,8 @@ bash docker/launch_docker.sh
 #### Option B: Conda Environment
 ```bash
 git clone https://github.com/yaof20/ReaL.git && cd ReaL
-conda create -n real python=3.10 -y
-conda activate real
+conda create -n verl_safe python=3.10 -y
+conda activate verl_safe
 bash install.sh
 ```
 

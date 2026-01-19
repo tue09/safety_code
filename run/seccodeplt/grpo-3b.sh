@@ -1,13 +1,14 @@
 #!/bin/bash
 
-export CUDA_VISIBLE_DEVICES=0,1,2,3
+export CUDA_VISIBLE_DEVICES=4,5,6,7
 
 PROJECT_NAME=training-safety-code-rl
-EXPERIMENT_NAME=base_rl
+# PROJECT_NAME=test
+EXPERIMENT_NAME=grpo_qwen2.5-3b-coder-instruct-hybrid-balance-adv-no-moo
 
 TRAIN_DATA=./data/seccodeplt/train.parquet
 VAL_DATA=./data/seccodeplt/test.parquet
-BASE_MODEL=/mnt/data/safetyCode/ckpts/SFT/qwen25coder3b_sft_safe_traj/checkpoint-564
+BASE_MODEL=/mnt/data/safetyCode/model_hub/LeTue09/qwen25coder3b-sft-safe-traj-ckpt564
 
 # Auto-detect number of GPUs from CUDA_VISIBLE_DEVICES
 N_GPUS=$(echo $CUDA_VISIBLE_DEVICES | tr ',' '\n' | wc -l)
@@ -93,7 +94,7 @@ mkdir -p ./log/$PROJECT_NAME
 PYTHONUNBUFFERED=1 python -m verl.trainer.main_ppo \
  data.train_files=$TRAIN_DATA \
  data.val_files=$VAL_DATA \
- algorithm.adv_estimator=grpo \
+ algorithm.adv_estimator=grpo_moo \
  data.train_batch_size=512 \
  data.val_batch_size=512 \
  data.max_prompt_length=375 \
@@ -115,6 +116,7 @@ PYTHONUNBUFFERED=1 python -m verl.trainer.main_ppo \
  trainer.default_hdfs_dir=null \
  trainer.n_gpus_per_node=$N_GPUS \
  trainer.nnodes=1 \
+ trainer.n_gpus_per_node=4 \
  trainer.save_freq=20 \
  trainer.test_freq=1 \
  trainer.project_name=$PROJECT_NAME \
@@ -122,6 +124,7 @@ PYTHONUNBUFFERED=1 python -m verl.trainer.main_ppo \
  trainer.resume_from_path=True \
  trainer.total_epochs=140 \
  +safety_ratio=$SAFETY_RATIO \
+ trainer.default_local_dir=/mnt/data/safetyCode/ckpts/$PROJECT_NAME/$EXPERIMENT_NAME-$TIME_TAG \
  +mypy_ratio=$MYPY_RATIO \
  +scpd_ratio=$SCPD_RATIO \
  +ut_ratio=$UT_RATIO \
