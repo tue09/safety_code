@@ -200,7 +200,7 @@ class DataParallelPPOActor(BasePPOActor):
 
         return log_probs
 
-    def update_policy(self, data: DataProto):
+    def update_policy(self, data: DataProto, moo_algorithm=None):
         # make sure we are in training mode
         self.actor_module.train()
 
@@ -257,7 +257,8 @@ class DataParallelPPOActor(BasePPOActor):
                                                                               advantages_util=advantages_util,
                                                                               advantages_safe=advantages_safe,
                                                                               eos_mask=response_mask,
-                                                                              cliprange=clip_ratio)
+                                                                              cliprange=clip_ratio,
+                                                                              moo_algorithm=moo_algorithm)
                 # compute entropy loss from entropy
                 entropy_loss = verl_F.masked_mean(entropy, response_mask)
 

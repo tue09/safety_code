@@ -334,7 +334,7 @@ def compute_policy_loss(old_log_prob, log_prob, advantages, eos_mask, cliprange)
     pg_clipfrac = verl_F.masked_mean(torch.gt(pg_losses2, pg_losses).float(), eos_mask)
     return pg_loss, pg_clipfrac, ppo_kl
 
-def compute_policy_loss_moo(old_log_prob, log_prob, advantages, advantages_util, advantages_safe, eos_mask, cliprange):
+def compute_policy_loss_moo(old_log_prob, log_prob, advantages, advantages_util, advantages_safe, eos_mask, cliprange, moo_algorithm=None):
     """Adapted from https://github.com/huggingface/trl/blob/main/trl/trainer/ppo_trainer.py#L1122
 
     Args:
@@ -385,8 +385,16 @@ def compute_policy_loss_moo(old_log_prob, log_prob, advantages, advantages_util,
     pg_clipfrac_safe = verl_F.masked_mean(torch.gt(pg_losses_safe2, pg_losses_safe).float(), eos_mask)
 
     # Combine
-    pg_loss = (pg_loss_util + pg_loss_safe) / 2
-    # print(f'---- pg_loss_util = {pg_loss_util}; pg_loss_safe = {pg_loss_safe} => pg_loss = {pg_loss}')
+
+    if moo_algorithm != None:
+        pg_loss, info = moo_algorithm.combine({
+            "util": pg_loss_util,
+            "safe": pg_loss_safe,
+        })
+        pass
+    else:
+        pg_loss = (pg_loss_util + pg_loss_safe) / 2
+        # print(f'---- pg_loss_util = {pg_loss_util}; pg_loss_safe = {pg_loss_safe} => pg_loss = {pg_loss}')
     pg_clipfrac = (pg_clipfrac_util + pg_clipfrac_safe) / 2
 
     return pg_loss, pg_clipfrac, ppo_kl, pg_loss_util, pg_loss_safe
