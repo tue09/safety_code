@@ -78,6 +78,7 @@ class ActorRolloutRefWorker(Worker):
     def __init__(self, config: DictConfig, role: str):
         super().__init__()
         self.config = config
+        self.moo_algorithm = None
         import torch.distributed
         if not torch.distributed.is_initialized():
             torch.distributed.init_process_group(backend="nccl")
@@ -399,8 +400,14 @@ class ActorRolloutRefWorker(Worker):
 
         torch.cuda.empty_cache()
 
+    @register(dispatch_mode=Dispatch.ONE_TO_ALL, blocking=True)
+    def set_moo_algorithm(self, moo_algorithm):
+        self.moo_algorithm = moo_algorithm
+        # print(f"[set_moo_algorithm] rank={self.rank} moo={self.moo_algorithm}")
+
     @register(dispatch_mode=Dispatch.DP_COMPUTE_PROTO)
     def update_actor(self, data: DataProto):
+        # print(f'#### using self.moo_algorithm = {self.moo_algorithm}')
         data = data.to('cuda')
 
         assert self._is_actor
@@ -417,7 +424,7 @@ class ActorRolloutRefWorker(Worker):
             data = self.ulysses_sharding_manager.preprocess_data(data=data)
             # perform training
             with Timer(name='update_policy', logger=None) as timer:
-                metrics = self.actor.update_policy(data=data)
+                metrics = self.actor.update_policy(data=data, moo_algorithm=self.moo_algorithm)
             delta_time = timer.last
             global_num_tokens = data.meta_info['global_token_num']
             estimated_flops, promised_flops = self.flops_counter.estimate_flops(global_num_tokens, delta_time)

@@ -25,7 +25,7 @@ def get_save_name(input_name, result_name):
         input_name = result_name.replace('0_5', '0.5')
 
     if 'huggingface' in input_name:
-        save_name = input_name.split('/')[-4]
+        save_name = input_name.split('/')[-4] + '_' + input_name.split('/')[-3]
     else:
         save_name = input_name.split('/')[-1]
 

@@ -1,1 +1,4 @@
-python model_merger.py --local_dir "/home/feng/mnt/fengyao/experiments/saved_checkpoints_compare/SecCodeGen-contrast/exp2_scp_ppt-tsk_fv-sd0.5_ut-c/global_step_140/actor"
+python model_merger.py --local_dir "/mnt/data/safetyCode/experiments/saved_checkpoints_compare/training-safety-code-rl/base_rl-20260118-182055/global_step_20/actor"
+python model_merger.py --local_dir "/mnt/data/safetyCode/experiments/saved_checkpoints_compare/training-safety-code-rl/base_rl-20260118-182055/global_step_40/actor"
+python model_merger.py --local_dir "/mnt/data/safetyCode/experiments/saved_checkpoints_compare/training-safety-code-rl/base_rl-20260118-182055/global_step_60/actor"
+python model_merger.py --local_dir "/mnt/data/safetyCode/experiments/saved_checkpoints_compare/training-safety-code-rl/base_rl-20260118-182055/global_step_80/actor"

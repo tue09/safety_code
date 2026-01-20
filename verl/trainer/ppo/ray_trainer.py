@@ -890,8 +890,9 @@ class RayPPOTrainer(object):
                 return
 
         # Initialize MOO optimizer:
-        moo_algorithm = moo_algo.FAMO(num_tasks=2, beta=1e-3, gamma=1e-3, device="cuda")
-        print(f'initialize moo_algorithm success')
+        moo_algorithm = moo_algo.FAMO(num_tasks=2, beta=1e-3, gamma=1e-3)
+        self.actor_rollout_wg.moo_algorithm = moo_algorithm
+        print(f'initialize moo_algorithm success with moo_algorithm = {self.actor_rollout_wg.moo_algorithm}')
         # we start from step 1
         self.global_steps += 1
 
@@ -1007,8 +1008,10 @@ class RayPPOTrainer(object):
                     # implement critic warmup
                     if self.config.trainer.critic_warmup <= self.global_steps:
                         # update actor
+                        self.actor_rollout_wg.set_moo_algorithm(moo_algorithm)
                         with _timer('update_actor', timing_raw):
-                            actor_output = self.actor_rollout_wg.update_actor(batch, moo_algorithm)
+                            # print(f'xxxxxx self.actor_rollout_wg.moo_algorithm = {self.actor_rollout_wg.moo_algorithm}')
+                            actor_output = self.actor_rollout_wg.update_actor(batch)
                         actor_output_metrics = reduce_metrics(actor_output.meta_info['metrics'])
                         metrics.update(actor_output_metrics)
 

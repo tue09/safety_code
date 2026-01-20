@@ -2,9 +2,9 @@
 
 export CUDA_VISIBLE_DEVICES=4,5,6,7
 
-# PROJECT_NAME=training-safety-code-rl
-PROJECT_NAME=test
-EXPERIMENT_NAME=grpo_qwen2.5-3b-coder-instruct-hybrid-balance-adv-no-moo
+PROJECT_NAME=training-safety-code-rl
+# PROJECT_NAME=test
+EXPERIMENT_NAME=grpo_qwen2.5-3b-coder-instruct-hybrid-balance-adv-famo
 
 TRAIN_DATA=./data/seccodeplt/train.parquet
 VAL_DATA=./data/seccodeplt/test.parquet
