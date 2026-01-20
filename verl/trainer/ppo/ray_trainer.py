@@ -890,6 +890,7 @@ class RayPPOTrainer(object):
                 return
 
         # Initialize MOO optimizer:
+        moo_algorithm = None
         if self.config.moo_algorithm == 'FAMO':
             moo_algorithm = moo_algo.FAMO(num_tasks=2, beta=1e-3, gamma=1e-3)
         elif self.config.moo_algorithm == 'DWA':
@@ -1014,7 +1015,8 @@ class RayPPOTrainer(object):
                     # implement critic warmup
                     if self.config.trainer.critic_warmup <= self.global_steps:
                         # update actor
-                        self.actor_rollout_wg.set_moo_algorithm(moo_algorithm)
+                        if moo_algorithm != None:
+                            self.actor_rollout_wg.set_moo_algorithm(moo_algorithm)
                         with _timer('update_actor', timing_raw):
                             # print(f'xxxxxx self.actor_rollout_wg.moo_algorithm = {self.actor_rollout_wg.moo_algorithm}')
                             actor_output = self.actor_rollout_wg.update_actor(batch)

@@ -246,19 +246,22 @@ class DataParallelPPOActor(BasePPOActor):
                 # all return: (bsz, response_length)
                 entropy, log_prob = self._forward_micro_batch(micro_batch=data, temperature=temperature)
 
-                # pg_loss, pg_clipfrac, ppo_kl = core_algos.compute_policy_loss(old_log_prob=old_log_prob,
-                #                                                               log_prob=log_prob,
-                #                                                               advantages=advantages,
-                #                                                               eos_mask=response_mask,
-                #                                                               cliprange=clip_ratio)
-                pg_loss, pg_clipfrac, ppo_kl, pg_loss_util, pg_loss_safe = core_algos.compute_policy_loss_moo(old_log_prob=old_log_prob,
-                                                                              log_prob=log_prob,
-                                                                              advantages=advantages,
-                                                                              advantages_util=advantages_util,
-                                                                              advantages_safe=advantages_safe,
-                                                                              eos_mask=response_mask,
-                                                                              cliprange=clip_ratio,
-                                                                              moo_algorithm=moo_algorithm)
+                if moo_algorithm != None:
+                    pg_loss, pg_clipfrac, ppo_kl, pg_loss_util, pg_loss_safe = core_algos.compute_policy_loss_moo(old_log_prob=old_log_prob,
+                                                                                log_prob=log_prob,
+                                                                                advantages=advantages,
+                                                                                advantages_util=advantages_util,
+                                                                                advantages_safe=advantages_safe,
+                                                                                eos_mask=response_mask,
+                                                                                cliprange=clip_ratio,
+                                                                                moo_algorithm=moo_algorithm)
+                else:
+                    pg_loss, pg_clipfrac, ppo_kl = core_algos.compute_policy_loss(old_log_prob=old_log_prob,
+                                                                                log_prob=log_prob,
+                                                                                advantages=advantages,
+                                                                                eos_mask=response_mask,
+                                                                                cliprange=clip_ratio)
+
                 # compute entropy loss from entropy
                 entropy_loss = verl_F.masked_mean(entropy, response_mask)
 
