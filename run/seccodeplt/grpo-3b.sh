@@ -2,8 +2,8 @@
 
 export CUDA_VISIBLE_DEVICES=4,5,6,7
 
-# PROJECT_NAME=training-safety-code-rl
-PROJECT_NAME=test
+PROJECT_NAME=training-safety-code-rl
+# PROJECT_NAME=test
 EXPERIMENT_NAME=grpo_qwen2.5-3b-coder-instruct-hybrid-balance-adv-dwa
 
 TRAIN_DATA=./data/seccodeplt/train.parquet
@@ -75,6 +75,7 @@ echo "CUDA_VISIBLE_DEVICES: $CUDA_VISIBLE_DEVICES"
 echo "Number of GPUs: $N_GPUS"
 echo "----------------------------------------"
 echo "Reward Configuration: $CONFIG_DESC"
+echo "MOO Algorithm: $MOO_ALGORITHM"
 echo "Safety Ratio: $SAFETY_RATIO"
 echo "Mypy Ratio: $MYPY_RATIO"
 echo "SCPD Ratio: $SCPD_RATIO"

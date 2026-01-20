@@ -129,19 +129,15 @@ class FAMO:
         return total_loss, info
 
 
+import torch
+from typing import List, Dict, Union, Tuple
+
+
 class DWA:
     """
-    Dynamic Weight Average (DWA) - CPU-only implementation.
-
-    Key ideas:
-      - Keep all DWA states on CPU: history buffer + weights.
-      - Each step: move only K loss scalars to CPU to update weights.
-      - Then move weights back to the original loss device to form total_loss.
-
-    Based on MTAN (CVPR 2019) DWA:
-      lambda_k(t) = K * exp(w_k(t-1)/T) / sum_i exp(w_i(t-1)/T)
-      w_k(t-1) = L_k(t-1) / L_k(t-2)
-    We approximate this using a FIFO window (smooth version).
+    Dynamic Weight Average (DWA) - CPU-only.
+    - Keep buffer + weights on CPU.
+    - Each step copy K loss scalars to CPU, update weights, then copy weights back to loss device.
     """
 
     def __init__(
@@ -151,9 +147,9 @@ class DWA:
         temp: float = 2.0,
         eps: float = 1e-8,
     ):
-        assert num_tasks >= 2, "num_tasks must be >= 2"
-        assert iteration_window >= 1, "iteration_window must be >= 1"
-        assert temp > 0, "temp must be > 0"
+        assert num_tasks >= 2
+        assert iteration_window >= 1
+        assert temp > 0
 
         self.k = num_tasks
         self.iteration_window = iteration_window
@@ -162,11 +158,10 @@ class DWA:
 
         self.running_iterations = 0
 
-        # FIFO history buffer on CPU: shape (2*W, K)
-        # init with ones so early ratios are stable
+        # FIFO history buffer on CPU: shape (2W, K)
         self.costs = torch.ones((2 * iteration_window, num_tasks), device="cpu", dtype=torch.float32)
 
-        # weights on CPU, sum should be K
+        # weights on CPU, sum approx = K
         self.weights = torch.ones((num_tasks,), device="cpu", dtype=torch.float32)
 
     def reset(self):
@@ -176,37 +171,40 @@ class DWA:
 
     @torch.no_grad()
     def _update_costs_fifo(self, cost_cpu_fp32: torch.Tensor):
-        # cost_cpu_fp32: (K,) on CPU
-        self.costs[:-1, :] = self.costs[1:, :]
-        self.costs[-1, :] = cost_cpu_fp32
+        """
+        Safe FIFO shift:
+            costs[:-1] <- costs[1:]  (needs clone to avoid overlap)
+            costs[-1]  <- cost
+        """
+        # clone RHS to avoid overlapping write
+        self.costs[:-1, :].copy_(self.costs[1:, :].clone())
+        self.costs[-1, :].copy_(cost_cpu_fp32)
 
     @torch.no_grad()
     def _compute_weights(self) -> torch.Tensor:
         """
-        Smooth DWA using window averages:
-            ws = mean(recent window) / mean(previous window)
-            weights = K * softmax(ws / T)
+        Smooth DWA using two windows:
+          ws = mean(new) / mean(old)
+          weights = K * softmax(ws / T)
         """
         W = self.iteration_window
-
-        mean_old = self.costs[:W, :].mean(dim=0)          # (K,)
-        mean_new = self.costs[W:, :].mean(dim=0)          # (K,)
-
-        ws = mean_new / (mean_old + self.eps)            # (K,)
+        mean_old = self.costs[:W, :].mean(dim=0)            # (K,)
+        mean_new = self.costs[W:, :].mean(dim=0)            # (K,)
+        ws = mean_new / (mean_old + self.eps)              # (K,)
 
         logits = ws / self.temp
-        exp_logits = torch.exp(logits - logits.max())    # stable softmax
+        logits = logits - logits.max()                     # stability
+        exp_logits = torch.exp(logits)
         w = (self.k * exp_logits) / (exp_logits.sum() + self.eps)
-
-        return w  # (K,), sum approx = K
+        return w  # (K,)
 
     def combine(
         self,
         losses: Union[List[torch.Tensor], Dict[str, torch.Tensor]],
         return_named: bool = True,
-        reduction: str = "mean",  # "mean" (like your snippet) or "sum"
+        reduction: str = "sum",  # "sum" recommended
     ) -> Tuple[torch.Tensor, Dict]:
-        # parse losses
+
         if isinstance(losses, dict):
             names = list(losses.keys())
             loss_list = [losses[n] for n in names]
@@ -216,8 +214,8 @@ class DWA:
 
         assert len(loss_list) == self.k, f"Expected {self.k} losses, got {len(loss_list)}"
 
-        # stack raw losses (keep grad)
-        L = torch.stack(loss_list)  # (K,)
+        # raw losses (keep grad)
+        L = torch.stack(loss_list)          # (K,), on GPU or CPU
         L_device = L.device
         L_dtype = L.dtype
 
@@ -225,23 +223,18 @@ class DWA:
         cost_cpu = L.detach().to(device="cpu", dtype=torch.float32)
 
         with torch.no_grad():
-            # update FIFO
             self._update_costs_fifo(cost_cpu)
 
-            # after enough iterations, update weights
-            # (you can also use: if self.running_iterations > self.iteration_window)
             if self.running_iterations >= self.iteration_window:
                 self.weights = self._compute_weights()
 
-        # move weights back to loss device for combining
+        # move weights to same device as loss for combining
         w = self.weights.to(device=L_device, dtype=L_dtype)
 
-        if reduction == "sum":
-            total_loss = (w.detach() * L).sum()
-        else:
-            # match the snippet behavior:
-            # weights sum = K, then mean() ~= sum(w_i * L_i) / K
+        if reduction == "mean":
             total_loss = (w.detach() * L).mean()
+        else:
+            total_loss = (w.detach() * L).sum()
 
         info = {
             "weights": self.weights.detach().cpu(),
@@ -250,13 +243,10 @@ class DWA:
         }
 
         if return_named:
-            info_named = {}
-            for i, n in enumerate(names):
-                info_named[n] = {
-                    "w": float(self.weights[i].item()),
-                    "loss": float(cost_cpu[i].item()),
-                }
-            info["named"] = info_named
+            info["named"] = {
+                names[i]: {"w": float(self.weights[i].item()), "loss": float(cost_cpu[i].item())}
+                for i in range(self.k)
+            }
 
         self.running_iterations += 1
         return total_loss, info
