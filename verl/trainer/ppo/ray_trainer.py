@@ -890,8 +890,13 @@ class RayPPOTrainer(object):
                 return
 
         # Initialize MOO optimizer:
-        moo_algorithm = moo_algo.FAMO(num_tasks=2, beta=1e-3, gamma=1e-3)
-        moo_algorithm = moo_algo.DWA(num_tasks=2, iteration_window=25, temp=2.0)
+        if self.config.moo_algorithm == 'FAMO':
+            moo_algorithm = moo_algo.FAMO(num_tasks=2, beta=1e-3, gamma=1e-3)
+        elif self.config.moo_algorithm == 'DWA':
+            moo_algorithm = moo_algo.DWA(num_tasks=2, iteration_window=25, temp=2.0)
+        else:
+            print(f'#### Not using MOO algorithm')
+
         self.actor_rollout_wg.moo_algorithm = moo_algorithm
         print(f'initialize moo_algorithm success with moo_algorithm = {self.actor_rollout_wg.moo_algorithm}')
         # we start from step 1

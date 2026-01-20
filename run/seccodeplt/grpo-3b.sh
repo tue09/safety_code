@@ -2,13 +2,13 @@
 
 export CUDA_VISIBLE_DEVICES=4,5,6,7
 
-PROJECT_NAME=training-safety-code-rl
-# PROJECT_NAME=test
-EXPERIMENT_NAME=grpo_qwen2.5-3b-coder-instruct-hybrid-balance-adv-famo
+# PROJECT_NAME=training-safety-code-rl
+PROJECT_NAME=test
+EXPERIMENT_NAME=grpo_qwen2.5-3b-coder-instruct-hybrid-balance-adv-dwa
 
 TRAIN_DATA=./data/seccodeplt/train.parquet
 VAL_DATA=./data/seccodeplt/test.parquet
-BASE_MODEL=/mnt/data/safetyCode/ckpts/SFT/qwen25coder3b_sft_safe_traj/checkpoint-564
+BASE_MODEL=/mnt/data/safetyCode/model_hub/LeTue09/qwen25coder3b-sft-safe-traj-ckpt564
 
 # Auto-detect number of GPUs from CUDA_VISIBLE_DEVICES
 N_GPUS=$(echo $CUDA_VISIBLE_DEVICES | tr ',' '\n' | wc -l)
@@ -28,7 +28,7 @@ export VLLM_ATTENTION_BACKEND=XFORMERS
 # ---------------------------------------------------------------------------
 
 TIME_TAG=$(date +%Y%m%d-%H%M%S)
-
+MOO_ALGORITHM="DWA"
 # Set reward ratios based on configuration
 case $REWARD_CONFIG in
     "detector_only")
@@ -128,4 +128,5 @@ PYTHONUNBUFFERED=1 python -m verl.trainer.main_ppo \
  +mypy_ratio=$MYPY_RATIO \
  +scpd_ratio=$SCPD_RATIO \
  +ut_ratio=$UT_RATIO \
+ +moo_algorithm=$MOO_ALGORITHM \
  2>&1 | tee ./log/$PROJECT_NAME/$EXPERIMENT_NAME-$TIME_TAG.log
