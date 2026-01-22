@@ -1,1 +1,6 @@
-python model_merger.py --local_dir "/mnt/data/safetyCode/ckpts/training-safety-code-rl/grpo_qwen2.5-3b-coder-instruct-hybrid-balance-adv-famo-20260119-190509/global_step_80/actor"
+python model_merger.py --local_dir "/mnt/data/safetyCode/ckpts/training-safety-code-rl/grpo_qwen2.5-3b-coder-instruct-hybrid-balance-adv-dwa-20260120-101036/global_step_20/actor"
+python model_merger.py --local_dir "/mnt/data/safetyCode/ckpts/training-safety-code-rl/grpo_qwen2.5-3b-coder-instruct-hybrid-balance-adv-dwa-20260120-101036/global_step_40/actor"
+python model_merger.py --local_dir "/mnt/data/safetyCode/ckpts/training-safety-code-rl/grpo_qwen2.5-3b-coder-instruct-hybrid-balance-adv-dwa-20260120-101036/global_step_60/actor"
+python model_merger.py --local_dir "/mnt/data/safetyCode/ckpts/training-safety-code-rl/grpo_qwen2.5-3b-coder-instruct-hybrid-balance-adv-dwa-20260120-101036/global_step_80/actor"
+python model_merger.py --local_dir "/mnt/data/safetyCode/ckpts/training-safety-code-rl/grpo_qwen2.5-3b-coder-instruct-hybrid-balance-adv-dwa-20260120-101036/global_step_100/actor"
+python model_merger.py --local_dir "/mnt/data/safetyCode/ckpts/training-safety-code-rl/grpo_qwen2.5-3b-coder-instruct-hybrid-balance-adv-dwa-20260120-101036/global_step_120/actor"

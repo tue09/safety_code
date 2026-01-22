@@ -4,7 +4,7 @@ export CUDA_VISIBLE_DEVICES=4,5,6,7
 
 PROJECT_NAME=training-safety-code-rl
 # PROJECT_NAME=test
-EXPERIMENT_NAME=grpo_qwen2.5-3b-coder-instruct-hybrid-balance-adv-dwa
+EXPERIMENT_NAME=grpo_qwen2.5-3b-coder-instruct-hybrid-balance-adv-reverse
 
 TRAIN_DATA=./data/seccodeplt/train.parquet
 VAL_DATA=./data/seccodeplt/test.parquet
@@ -28,7 +28,7 @@ export VLLM_ATTENTION_BACKEND=XFORMERS
 # ---------------------------------------------------------------------------
 
 TIME_TAG=$(date +%Y%m%d-%H%M%S)
-MOO_ALGORITHM="DWA"
+MOO_ALGORITHM="REVERSE"
 # Set reward ratios based on configuration
 case $REWARD_CONFIG in
     "detector_only")

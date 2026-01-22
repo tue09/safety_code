@@ -250,3 +250,50 @@ class DWA:
 
         self.running_iterations += 1
         return total_loss, info
+
+
+import torch
+from typing import List, Dict, Union, Tuple
+
+
+class REVERSE:
+    """
+    Basic reverse combiner:
+      total_loss = loss_0 - loss_1 - loss_2 - ... - loss_{K-1}
+
+    Accepts:
+      - list of losses: [l0, l1, ...]
+      - dict of losses: {"name0": l0, "name1": l1, ...}
+    """
+
+    def __init__(self, num_tasks: int):
+        assert num_tasks >= 1, "num_tasks must be >= 1"
+        self.k = num_tasks
+
+    def combine(
+        self,
+        losses: Union[List[torch.Tensor], Dict[str, torch.Tensor]],
+        return_named: bool = True,
+    ) -> Tuple[torch.Tensor, Dict]:
+        if isinstance(losses, dict):
+            names = list(losses.keys())
+            loss_list = [losses[n] for n in names]
+        else:
+            names = [f"task_{i}" for i in range(len(losses))]
+            loss_list = list(losses)
+
+        assert len(loss_list) == self.k, f"Expected {self.k} losses, got {len(loss_list)}"
+        assert all(isinstance(x, torch.Tensor) for x in loss_list), "All losses must be torch.Tensor"
+
+        L = torch.stack(loss_list)  # keeps grad
+        total_loss = L[0] - L[1:].sum() if self.k > 1 else L[0]
+
+        info = {
+            "losses": L.detach().cpu(),
+            "total_loss": float(total_loss.detach().cpu().item()),
+        }
+
+        if return_named:
+            info["named"] = {names[i]: float(L[i].detach().cpu().item()) for i in range(self.k)}
+
+        return total_loss, info

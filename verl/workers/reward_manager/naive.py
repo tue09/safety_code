@@ -73,7 +73,7 @@ class NaiveRewardManager:
     def __call__(self, data: DataProto):
         if True:  # (TODO) Add by TueLDT1; The current code by ReaL authors really net to optimize by parallelism and batching 
             # because the for loop in the original code require a lot of training time
-            print(f'!!!![self.reward_setting] = {self.reward_setting} but the current for loop to compute reward require a huge time => Yeah0')
+            # print(f'!!!![self.reward_setting] = {self.reward_setting} but the current for loop to compute reward require a huge time => Yeah0')
             return self.call_for_seccodeplt_fast(data)
         
         if self.reward_setting is None:

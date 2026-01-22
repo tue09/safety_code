@@ -882,12 +882,12 @@ class RayPPOTrainer(object):
 
         # perform validation before training
         # currently, we only support validation using the reward_function.
-        if self.val_reward_fn is not None and self.config.trainer.get('val_before_train', True):
-            val_metrics = self._validate()
-            pprint(f'Initial validation metrics: {val_metrics}')
-            logger.log(data=val_metrics, step=self.global_steps)
-            if self.config.trainer.get('val_only', False):
-                return
+        # if self.val_reward_fn is not None and self.config.trainer.get('val_before_train', True):
+        #     val_metrics = self._validate()
+        #     pprint(f'Initial validation metrics: {val_metrics}')
+        #     logger.log(data=val_metrics, step=self.global_steps)
+        #     if self.config.trainer.get('val_only', False):
+        #         return
 
         # Initialize MOO optimizer:
         moo_algorithm = None
@@ -895,6 +895,8 @@ class RayPPOTrainer(object):
             moo_algorithm = moo_algo.FAMO(num_tasks=2, beta=1e-3, gamma=1e-3)
         elif self.config.moo_algorithm == 'DWA':
             moo_algorithm = moo_algo.DWA(num_tasks=2, iteration_window=25, temp=2.0)
+        elif self.config.moo_algorithm == 'REVERSE':
+            moo_algorithm = moo_algo.REVERSE(num_tasks=2)
         else:
             print(f'#### Not using MOO algorithm')
 
@@ -982,6 +984,17 @@ class RayPPOTrainer(object):
                         batch.batch['token_level_scores'] = reward_tensor
                         batch.batch['util_token_level_rewards'] = ut_rewards_tensor
                         batch.batch['safe_token_level_rewards'] = scpd_rewards_tensor
+                        # print("*" * 50)
+
+                        # ut_reward = ut_rewards_tensor.sum(dim=-1)
+                        # scpd_reward = scpd_rewards_tensor.sum(dim=-1)
+                        # print(f"#### ut_reward: shape={ut_reward.shape}, dtype={ut_reward.dtype}, device={ut_reward.device}")
+                        # print(f"     mean={ut_reward.mean().item():.6f}, std={ut_reward.std().item():.6f}, "
+                        #     f"min={ut_reward.min().item():.6f}, max={ut_reward.max().item():.6f}")
+                        # print(f"#### scpd_reward: shape={scpd_reward.shape}, dtype={scpd_reward.dtype}, device={scpd_reward.device}")
+                        # print(f"     mean={scpd_reward.mean().item():.6f}, std={scpd_reward.std().item():.6f}, "
+                        #     f"min={scpd_reward.min().item():.6f}, max={scpd_reward.max().item():.6f}")
+                        # print("*" * 50)
                         # print(f'!!!! [Done Computing reward by rule-based ...]')
                         # compute rewards. apply_kl_penalty if available
                         if not self.config.actor_rollout_ref.actor.get('use_kl_loss', False):
@@ -998,6 +1011,20 @@ class RayPPOTrainer(object):
 
                         # compute advantages, executed on the driver process
                         # print(f'!!!! [Computing adv ...]')
+                        response_length = batch.batch['responses'].size(-1)
+                        attention_mask = batch.batch['attention_mask']
+                        response_mask = attention_mask[:, -response_length:]
+                        print(f'### Analysis for functionality')
+                        core_algos.compute_grpo_outcome_advantage(batch.batch['util_token_level_rewards'],
+                                                                  response_mask,
+                                                                  batch.non_tensor_batch['uid'])
+                        
+                        print(f'### Analysis for safety')                                          
+                        core_algos.compute_grpo_outcome_advantage(batch.batch['safe_token_level_rewards'],
+                                                                  response_mask,
+                                                                  batch.non_tensor_batch['uid'])
+                        
+                        print(f'### Analysis for Average')                                          
                         batch = compute_advantage(batch,
                                                   adv_estimator=self.config.algorithm.adv_estimator,
                                                   gamma=self.config.algorithm.gamma,

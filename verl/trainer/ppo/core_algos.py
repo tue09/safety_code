@@ -150,6 +150,15 @@ def compute_grpo_outcome_advantage(token_level_rewards: torch.Tensor,
             scores[i] = (scores[i] - id2mean[index[i]]) / (id2std[index[i]] + epsilon)
         scores = scores.unsqueeze(-1).tile([1, response_length]) * eos_mask
 
+    means_all = torch.stack([v.detach().float().cpu() for v in id2mean.values()])
+    stds_all  = torch.stack([v.detach().float().cpu() for v in id2std.values()])
+
+    print(f"[mean reward of group] num_keys={len(id2mean)} | mean={means_all.mean().item():.6f} | std={means_all.std().item():.6f} "
+        f"| min={means_all.min().item():.6f} | max={means_all.max().item():.6f}")
+
+    print(f"[std reward of group] num_keys={len(id2std)}  | mean={stds_all.mean().item():.6f}  | std={stds_all.std().item():.6f}  "
+        f"| min={stds_all.min().item():.6f}  | max={stds_all.max().item():.6f}")
+
     return scores, scores
 
 ## (TODO) Add by TueLDT1
