@@ -2,7 +2,7 @@ export CUDA_VISIBLE_DEVICES=0,1,2,3
 
 PROJECT_NAME=training-safety-code-rl-SQL
 # PROJECT_NAME=test
-EXPERIMENT_NAME=grpo_qwen2.5-3b-coder-instruct-hybrid-reward-0.3-0.7
+EXPERIMENT_NAME=grpo_qwen2.5-3b-coder-instruct-hybrid-reward-0.3-0.7-sql
 
 TRAIN_DATA=./data/safesql/train.parquet
 VAL_DATA=./data/safesql/test.parquet
@@ -85,6 +85,7 @@ PYTHONUNBUFFERED=1 python -m verl.trainer.main_ppo \
  trainer.resume_from_path=True \
  trainer.total_epochs=10000 \
  trainer.total_training_steps=600 \
+ trainer.default_local_dir=/mnt/data/safetyCode/ckpts/$PROJECT_NAME/$EXPERIMENT_NAME-$TIME_TAG \
  +reward_model.train_reward.functions=$TRAIN_REWARD_FUNC \
  +reward_model.train_reward.weights=$TRAIN_REWARD_WEIGHT \
  +reward_model.val_reward.functions=$VAL_REWARD_FUNC \

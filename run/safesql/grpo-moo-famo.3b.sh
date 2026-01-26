@@ -85,6 +85,7 @@ PYTHONUNBUFFERED=1 python -m verl.trainer.main_ppo \
  trainer.resume_from_path=True \
  trainer.total_epochs=10000 \
  trainer.total_training_steps=600 \
+ trainer.default_local_dir=/mnt/data/safetyCode/ckpts/$PROJECT_NAME/$EXPERIMENT_NAME-$TIME_TAG \
  +reward_model.train_reward.functions=$TRAIN_REWARD_FUNC \
  +reward_model.train_reward.weights=$TRAIN_REWARD_WEIGHT \
  +reward_model.val_reward.functions=$VAL_REWARD_FUNC \
