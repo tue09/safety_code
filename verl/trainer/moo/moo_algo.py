@@ -286,7 +286,7 @@ class REVERSE:
         assert all(isinstance(x, torch.Tensor) for x in loss_list), "All losses must be torch.Tensor"
 
         L = torch.stack(loss_list)  # keeps grad
-        total_loss = L[0] - L[1:].sum() if self.k > 1 else L[0]
+        total_loss = L[0] - 0.2*L[1:].sum() if self.k > 1 else L[0]
 
         info = {
             "losses": L.detach().cpu(),

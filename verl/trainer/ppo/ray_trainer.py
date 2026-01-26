@@ -492,6 +492,7 @@ class RayPPOTrainer(object):
                                          filter_prompts=True,
                                          return_raw_chat=self.config.data.get('return_raw_chat', False),
                                          truncation='error')
+
         # use sampler for better ckpt resume
         if self.config.data.shuffle:
             train_dataloader_generator = torch.Generator()
@@ -519,6 +520,7 @@ class RayPPOTrainer(object):
                                          drop_last=True,
                                          collate_fn=collate_fn)
 
+        print(f'### Train len = {len(self.train_dataloader)}')
         assert len(self.train_dataloader) >= 1
         assert len(self.val_dataloader) >= 1
 
@@ -882,12 +884,12 @@ class RayPPOTrainer(object):
 
         # perform validation before training
         # currently, we only support validation using the reward_function.
-        # if self.val_reward_fn is not None and self.config.trainer.get('val_before_train', True):
-        #     val_metrics = self._validate()
-        #     pprint(f'Initial validation metrics: {val_metrics}')
-        #     logger.log(data=val_metrics, step=self.global_steps)
-        #     if self.config.trainer.get('val_only', False):
-        #         return
+        if self.val_reward_fn is not None and self.config.trainer.get('val_before_train', True):
+            val_metrics = self._validate()
+            pprint(f'Initial validation metrics: {val_metrics}')
+            logger.log(data=val_metrics, step=self.global_steps)
+            if self.config.trainer.get('val_only', False):
+                return
 
         # Initialize MOO optimizer:
         moo_algorithm = None

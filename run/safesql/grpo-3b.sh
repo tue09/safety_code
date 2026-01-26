@@ -1,11 +1,12 @@
 export CUDA_VISIBLE_DEVICES=0,1,2,3
 
-PROJECT_NAME=CodeRL-SQL
-EXPERIMENT_NAME=hybrid-Qwen2.5-Coder-3B-Instruct
+PROJECT_NAME=training-safety-code-rl-SQL
+# PROJECT_NAME=test
+EXPERIMENT_NAME=grpo_qwen2.5-3b-coder-instruct-hybrid-reward-0.3-0.7
 
 TRAIN_DATA=./data/safesql/train.parquet
 VAL_DATA=./data/safesql/test.parquet
-BASE_MODEL=Qwen/Qwen2.5-Coder-3B-Instruct
+BASE_MODEL=/mnt/data/safetyCode/model_hub/LeTue09/qwen25coder3b-sft-safe-traj-ckpt564
 
 TRAIN_REWARD_FUNC="['sql-security-static','sql-correctness']"
 TRAIN_REWARD_WEIGHT="[0.3,0.7]"
@@ -15,20 +16,20 @@ VAL_REWARD_WEIGHT=1
 
 # ---------------------------------------------------------------------------
 
-export WANDB_API_KEY="[YOUR_WANDB_API_KEY]"
+export WANDB_API_KEY="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"
 export VLLM_ATTENTION_BACKEND=XFORMERS
 
 TIME_TAG=$(date +%Y%m%d-%H%M%S)
-
+MOO_ALGORITHM="NONE"
 echo "----------------------------------------"
 echo "Project: $PROJECT_NAME"
 echo "Experiment: $EXPERIMENT_NAME-$TIME_TAG"
 echo "Base Model: $BASE_MODEL"
+echo "MOO ALGORITHM: $MOO_ALGORITHM"
 echo "Train Data: $TRAIN_DATA"
 echo "Validation Data: $VAL_DATA"
 echo "----------------------------------------"
 echo "Train Reward Model: $TRAIN_REWARD_FUNC with weights $TRAIN_REWARD_WEIGHT"
-echo "MOO Algorithm: $MOO_ALGORITHM"
 echo "Validation Reward Model: $VAL_REWARD_FUNC with weights $VAL_REWARD_WEIGHT"
 echo "CUDA_VISIBLE_DEVICES: $CUDA_VISIBLE_DEVICES"
 echo "----------------------------------------"
@@ -41,6 +42,12 @@ fi
 
 mkdir -p ./log/$PROJECT_NAME
 
+#  critic.optim.lr=1e-5 \
+#  critic.model.path=$BASE_MODEL \
+#  critic.ppo_micro_batch_size_per_gpu=4 \
+#  critic.model.enable_gradient_checkpointing=false \
+#  critic.model.fsdp_config.param_offload=false \
+#  critic.model.fsdp_config.optimizer_offload=false \
 # ---------------------------------------------------------------------------
 
 PYTHONUNBUFFERED=1 python -m verl.trainer.main_ppo \
@@ -48,6 +55,7 @@ PYTHONUNBUFFERED=1 python -m verl.trainer.main_ppo \
  data.val_files=$VAL_DATA \
  data.train_batch_size=256 \
  data.val_batch_size=256 \
+ algorithm.adv_estimator=grpo \
  data.max_prompt_length=1024 \
  data.max_response_length=1024 \
  actor_rollout_ref.model.path=$BASE_MODEL \
@@ -59,15 +67,11 @@ PYTHONUNBUFFERED=1 python -m verl.trainer.main_ppo \
  actor_rollout_ref.actor.fsdp_config.optimizer_offload=false \
  actor_rollout_ref.rollout.log_prob_micro_batch_size_per_gpu=4 \
  actor_rollout_ref.rollout.tensor_model_parallel_size=1 \
- actor_rollout_ref.rollout.gpu_memory_utilization=0.5 \
+ actor_rollout_ref.rollout.gpu_memory_utilization=0.6 \
+ actor_rollout_ref.rollout.n=8 \
  actor_rollout_ref.ref.log_prob_micro_batch_size_per_gpu=4 \
+ actor_rollout_ref.actor.use_kl_loss=False \
  actor_rollout_ref.ref.fsdp_config.param_offload=false \
- critic.optim.lr=1e-5 \
- critic.model.path=$BASE_MODEL \
- critic.ppo_micro_batch_size_per_gpu=4 \
- critic.model.enable_gradient_checkpointing=false \
- critic.model.fsdp_config.param_offload=false \
- critic.model.fsdp_config.optimizer_offload=false \
  algorithm.kl_ctrl.kl_coef=0.001 \
  trainer.logger=['console','wandb'] \
  +trainer.val_before_train=true \
@@ -75,7 +79,7 @@ PYTHONUNBUFFERED=1 python -m verl.trainer.main_ppo \
  trainer.n_gpus_per_node=4 \
  trainer.nnodes=1 \
  trainer.save_freq=40 \
- trainer.test_freq=20 \
+ trainer.test_freq=5 \
  trainer.project_name=$PROJECT_NAME \
  trainer.experiment_name=$EXPERIMENT_NAME-$TIME_TAG \
  trainer.resume_from_path=True \
@@ -86,5 +90,6 @@ PYTHONUNBUFFERED=1 python -m verl.trainer.main_ppo \
  +reward_model.val_reward.functions=$VAL_REWARD_FUNC \
  +reward_model.val_reward.weights=$VAL_REWARD_WEIGHT \
  +reward_model.num_processes=40 \
+ +moo_algorithm=$MOO_ALGORITHM \
  2>&1 | tee ./log/$PROJECT_NAME/$EXPERIMENT_NAME-$TIME_TAG.log
 

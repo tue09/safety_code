@@ -16,7 +16,10 @@
 
 def _default_compute_score(data_source, solution_str, ground_truth, extra_info=None, config=None, 
                            reward_setting=None, eval_mode=False):
-    
+    # print(f'#### Super check data_source = {data_source} and reward_setting = {reward_setting} and type reward_model.train_reward.functions = {type(list(config.reward_model.train_reward.functions))}')
+    # print(f'### and even further = {type(list(config.reward_model.train_reward.functions)[0])}')
+    # print(f'### and even further x2 = {type(list(config.reward_model.train_reward.weights)[0])}')
+
     if reward_setting is not None:
         functions = reward_setting.functions
         weights = reward_setting.weights
@@ -80,6 +83,10 @@ def _default_compute_score(data_source, solution_str, ground_truth, extra_info=N
         elif data_source == 'fengyao1909/seccodeplt_ut':
             from . import seccodeplt
             res = seccodeplt.compute_score(solution_str, extra_info=extra_info, safety_ratio=config.safety_ratio, ut_ratio=config.ut_ratio, mypy_ratio=config.mypy_ratio, scpd_ratio=config.scpd_ratio)
+            return [float(r) for r in res]  # return multiple scores
+        elif data_source == 'sql':
+            from . import sql_utils
+            res = sql_utils.compute_score_hybrid(solution_str, extra_info=extra_info, components=list(config.reward_model.train_reward.functions), weights=list(config.reward_model.train_reward.weights))
             return [float(r) for r in res]  # return multiple scores
         else:
             raise NotImplementedError

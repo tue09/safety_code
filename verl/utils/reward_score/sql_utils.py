@@ -173,7 +173,7 @@ def compute_score_correctness(solution_str, extra_info=None, max_test_cases=5, e
                 user_input=input_str
             )
             
-            if random.randint(0, 1000) == 0:
+            if random.randint(0, 5000) == 0:
                 print('[DEBUG] Running the program:')
                 print("=" * 50)
                 print(sql_code)
@@ -240,6 +240,15 @@ def compute_score_hybrid(
         elif component == 'security_static':
             score = compute_score_security_static(solution_str, extra_info, eval_mode=eval_mode)
             score_list.append(score)
+        if component == 'sql-correctness':
+            score = compute_score_correctness(solution_str, extra_info, eval_mode=eval_mode)
+            score_list.append(score)
+        elif component == 'sql-security-dynamic':
+            score = compute_score_security_dynamic(solution_str, extra_info, eval_mode=eval_mode)
+            score_list.append(score)
+        elif component == 'sql-security-static':
+            score = compute_score_security_static(solution_str, extra_info, eval_mode=eval_mode)
+            score_list.append(score)
         else:
             raise ValueError(f"Unknown component: {component}")
     
@@ -247,8 +256,12 @@ def compute_score_hybrid(
         for component, score in zip(components, score_list):
             print(f"{component}: {score}")
     
+    # (TODO) Add by TueLDT1 (By somehow, their code now is not implement for sql ???)
+    score_correctness = score_list[0]
+    score_security = score_list[1]
+    # score_security_dynamic = 
     final_score = sum([score * weight for score, weight in zip(score_list, weights)])
-    return final_score
+    return final_score, score_correctness, score_security, score_security
     
     
 if __name__ == "__main__":
