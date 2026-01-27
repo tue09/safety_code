@@ -100,7 +100,8 @@ def run_program(code, program_type, input_var, output_var, fn_name, timeout=10):
             else:
                 ret = 'pass', "Success"
                 
-            if random.randint(0, 1000) == 0:
+            # if random.randint(0, 1000) == 0:
+            if False:
                 print('[DEBUG] Running the program:')
                 print("=" * 50)
                 print(program)

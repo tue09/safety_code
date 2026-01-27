@@ -173,7 +173,8 @@ def compute_score_correctness(solution_str, extra_info=None, max_test_cases=5, e
                 user_input=input_str
             )
             
-            if random.randint(0, 5000) == 0:
+            # if random.randint(0, 5000) == 0:
+            if False:
                 print('[DEBUG] Running the program:')
                 print("=" * 50)
                 print(sql_code)

@@ -162,12 +162,74 @@ def compute_grpo_outcome_advantage(token_level_rewards: torch.Tensor,
     return scores, scores
 
 ## (TODO) Add by TueLDT1
+@torch.no_grad()
+def print_masked_stats(tag: str, x: torch.Tensor, mask: torch.Tensor, eps: float = 1e-6):
+    """
+    Prints global (over all valid tokens) and per-token (over batch) stats.
+    x, mask: (B, T). mask is 0/1.
+    """
+    x_f = x.float()
+    m_f = mask.float()
+
+    # Global stats over all valid entries
+    cnt = m_f.sum()
+    if cnt.item() == 0:
+        print(f"{tag}: no valid tokens (mask sum = 0)")
+        return
+
+    sum_x = (x_f * m_f).sum()
+    mean_g = sum_x / cnt
+
+    var_g = (((x_f - mean_g) ** 2) * m_f).sum() / cnt
+    std_g = torch.sqrt(var_g + eps)
+
+    x_min = x_f.masked_fill(m_f == 0, float("inf")).min()
+    x_max = x_f.masked_fill(m_f == 0, float("-inf")).max()
+
+    # Per-token stats (for each t, mean/std over batch)
+    denom = m_f.sum(dim=0)  # (T,)
+    valid_t = denom > 0
+
+    mean_t = torch.zeros_like(denom)
+    var_t = torch.zeros_like(denom)
+
+    mean_t[valid_t] = (x_f * m_f).sum(dim=0)[valid_t] / denom[valid_t]
+    centered = x_f - mean_t.unsqueeze(0)
+    var_t[valid_t] = ((centered ** 2) * m_f).sum(dim=0)[valid_t] / denom[valid_t]
+    std_t = torch.sqrt(var_t + eps)
+
+    print(
+        f"{tag}: global mean={mean_g.item():.6f}, std={std_g.item():.6f}, "
+        f"min={x_min.item():.6f}, max={x_max.item():.6f}, count={int(cnt.item())}"
+    )
+    print(
+        f"{tag}: per-token mean[min,max]=[{mean_t[valid_t].min().item():.6f}, {mean_t[valid_t].max().item():.6f}], "
+        f"per-token std[min,max]=[{std_t[valid_t].min().item():.6f}, {std_t[valid_t].max().item():.6f}]"
+    )
+
+@torch.no_grad()
+def masked_batchnorm_over_batch(x: torch.Tensor, mask: torch.Tensor, eps: float = 1e-6):
+    """
+    BatchNorm across the batch dimension for each time step.
+    x:    (B, T)
+    mask: (B, T) with 1 for valid tokens, 0 for padded
+    """
+    x = x * mask
+
+    denom = mask.sum(dim=0, keepdim=True).clamp_min(1.0)  # (1, T)
+    mean = (x.sum(dim=0, keepdim=True) / denom)           # (1, T)
+    var  = (((x - mean) ** 2) * mask).sum(dim=0, keepdim=True) / denom  # (1, T)
+
+    x_hat = (x - mean) / torch.sqrt(var + eps)
+    return x_hat * mask
+
 def compute_grpo_moo_outcome_advantage(token_level_rewards: torch.Tensor,
                                     util_token_level_rewards: torch.Tensor,
                                     safe_token_level_rewards: torch.Tensor,
                                    eos_mask: torch.Tensor,
                                    index: torch.Tensor,
-                                   epsilon: float = 1e-6):
+                                   epsilon: float = 1e-6,
+                                   _normalized: bool = True):
     """
     Compute advantage for GRPO, operating only on Outcome reward 
     (with only one scalar reward for each response).
@@ -233,6 +295,23 @@ def compute_grpo_moo_outcome_advantage(token_level_rewards: torch.Tensor,
         for i in range(bsz):
             scores_safe[i] = (scores_safe[i] - id2mean_safe[index[i]]) / (id2std_safe[index[i]] + epsilon)
         scores_safe = scores_safe.unsqueeze(-1).tile([1, response_length]) * eos_mask
+
+        print('*'*50)
+        # print(f'### scores_util before has shape = {scores_util.shape} and value = {scores_util}')
+        # print(f'### scores_safe before has shape = {scores_safe.shape} and value = {scores_safe}')
+        # print_masked_stats("scores_util BEFORE", scores_util, eos_mask, eps=epsilon)
+        # print_masked_stats("scores_safe BEFORE", scores_safe, eos_mask, eps=epsilon)
+
+        if _normalized == True:
+            scores_util = masked_batchnorm_over_batch(scores_util, eos_mask, eps=epsilon)
+            scores_safe = masked_batchnorm_over_batch(scores_safe, eos_mask, eps=epsilon)
+            # print_masked_stats("scores_util AFTER ", scores_util, eos_mask, eps=epsilon)
+            # print_masked_stats("scores_safe AFTER ", scores_safe, eos_mask, eps=epsilon)
+
+            # print(f'### scores_util after normalized has shape = {scores_util.shape} and value = {scores_util}')
+            # print(f'### scores_safe after normalized has shape = {scores_safe.shape} and value = {scores_safe}')
+
+        print('*'*50)
 
         # Combine 2 scores
         scores = scores_util + scores_safe 

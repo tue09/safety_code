@@ -1,7 +1,7 @@
 export CUDA_VISIBLE_DEVICES=4,5,6,7
 
-PROJECT_NAME=training-safety-code-rl-SQL
-# PROJECT_NAME=test
+# PROJECT_NAME=training-safety-code-rl-SQL
+PROJECT_NAME=test
 EXPERIMENT_NAME=grpo_qwen2.5-3b-coder-instruct-hybrid-balance-adv-famo-sql
 
 TRAIN_DATA=./data/safesql/train.parquet
