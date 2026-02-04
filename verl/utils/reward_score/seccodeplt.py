@@ -12,6 +12,15 @@ import tempfile
 import mypy.api
 import random
 from verl.utils.reward_score.seccodeplt_detector import run_all_detectors, run_all_detectors_parallel
+from typing import Optional
+
+def extract_content_in_code_final_blocks(text: str) -> Optional[str]:
+    """
+    Returns the content of the last ```python ... ``` block (without the fences).
+    If none exists, returns None.
+    """
+    blocks = re.findall(r"```python(.*?)```", text, flags=re.DOTALL | re.IGNORECASE)
+    return [blocks[-1].strip()] if blocks else []
 
 def extract_content_in_code_blocks(input: str) -> list[str]:
     # Using regular expression to find content between code blocks ```
@@ -131,7 +140,11 @@ def compute_score(solution_str, extra_info=None, safety_ratio=0.5, ut_ratio=0.0,
     """
     # print(f'model raw output is \n ============= raw output start =============\n{solution_str} \n ==========raw output end===========')
 
-    extracted = extract_content_in_code_blocks(solution_str)
+    ### (TODO) Add by TueLDT1: In the reasoning progress, it might be content a lot of code block
+    # and these code blocks does not really strickly compulse (it just reasoning)
+    # => we just need to focus on final block instead of all the found code blocks
+    # extracted = extract_content_in_code_blocks(solution_str) # original code
+    extracted = extract_content_in_code_final_blocks(solution_str) # modified code
     # print_info = random.randint(0, 100) == 1
     print_info = 0
 
