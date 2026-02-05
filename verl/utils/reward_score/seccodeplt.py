@@ -13,6 +13,58 @@ import mypy.api
 import random
 from verl.utils.reward_score.seccodeplt_detector import run_all_detectors, run_all_detectors_parallel
 from typing import Optional
+import re
+from collections import Counter
+from typing import Dict, Any
+
+### (TODO) Add by TueLDT1: Adding format reward
+_THINK_OPEN_RE  = re.compile(r"<think\b[^>]*>", re.IGNORECASE)
+_THINK_CLOSE_RE = re.compile(r"</\s*think\s*>", re.IGNORECASE)
+_CODEBLOCK_RE = re.compile(r"```[\s\S]*?```")  # any fenced code block
+
+def format_reward(text: str,
+                  repeat_threshold: int = 2,
+                  w_repeat: float = -0.2,
+                  w_final: float = -1.0,
+                  w_think: float = -1.0,
+                  base: float = 1.0) -> Dict[str, Any]:
+    """
+    Violations:
+      - repeat: any chunk (split by '\n\n') appears > repeat_threshold times
+      - final: any fenced code block exists (``` ... ```)
+      - think: any <think> tag exists
+    Returns: {"reward": float, "violations": {...}, "stats": {...}}
+    """
+    # repeat check
+    chunks = [re.sub(r"\s+", " ", c.strip()) for c in text.split("\n\n") if c.strip()]
+    chunks_f = [
+        c for c in chunks
+        if len(set(c.replace(" ", ""))) > 1
+    ]
+    counts = Counter(chunks_f)
+    max_rep = max(counts.values(), default=0)
+    v_repeat = max_rep > repeat_threshold
+    if v_repeat == True:
+        v_repeat_reverse = False
+    else:
+        v_repeat_reverse = True
+
+    # final marker (code block) + <think> tag
+    v_final = bool(_CODEBLOCK_RE.search(text))
+    v_think = bool(_THINK_OPEN_RE.search(text)) and bool(_THINK_CLOSE_RE.search(text))
+
+    # reward = base + (w_repeat if v_repeat else 0.0) + (w_final if v_final else 0.0) + (w_think if v_think else 0.0)
+    # reward = max(0.0, min(base, reward))  # clamp to [0, base]
+    if (v_think == True) and (v_final == True) and (v_repeat_reverse == True):
+        reward = 1
+    else:
+        reward = 0
+
+    return {
+        "reward": reward,
+        "violations": {"repeat": v_repeat_reverse, "final": v_final, "think": v_think},
+        "stats": {"max_repeat": max_rep, "num_chunks": len(chunks)},
+    }
 
 def extract_content_in_code_final_blocks(text: str) -> Optional[str]:
     """
@@ -144,6 +196,7 @@ def compute_score(solution_str, extra_info=None, safety_ratio=0.5, ut_ratio=0.0,
     # and these code blocks does not really strickly compulse (it just reasoning)
     # => we just need to focus on final block instead of all the found code blocks
     # extracted = extract_content_in_code_blocks(solution_str) # original code
+    format_score = format_reward(solution_str)
     extracted = extract_content_in_code_final_blocks(solution_str) # modified code
     # print_info = random.randint(0, 100) == 1
     print_info = 0
@@ -185,6 +238,11 @@ def compute_score(solution_str, extra_info=None, safety_ratio=0.5, ut_ratio=0.0,
 
                 ut_reward_score = safety_ratio * sfty_score + (1 - safety_ratio) * capb_score
 
+        # (TODO) Add by TueLDT1: Combine with format score
+        if format_score["reward"] == 0:
+            ut_reward_score = 0
+        # ut_reward_score = 0.5*ut_reward_score + 0.5*format_score["reward"]
+        if extra_info != None:
             if print_info:
                 print(f'============== Unit Test Reward start =============')
                 print(f'unit test result is {ut_result}')

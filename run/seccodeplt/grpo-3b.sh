@@ -4,11 +4,11 @@ export CUDA_VISIBLE_DEVICES=4,5,6,7
 
 PROJECT_NAME=training-safety-code-rl
 # PROJECT_NAME=test
-EXPERIMENT_NAME=grpo_qwen2.5-3b-coder-instruct-hybrid-balance-adv-reverse-20pc
+EXPERIMENT_NAME=grpo_qwen2.5-3b-coder-instruct-after-reasoning-sft-hybrid-balance-adv-ckpt-37
 
 TRAIN_DATA=./data/seccodeplt/train.parquet
 VAL_DATA=./data/seccodeplt/test.parquet
-BASE_MODEL=/mnt/data/safetyCode/model_hub/LeTue09/qwen25coder3b-sft-safe-traj-ckpt564
+BASE_MODEL=/mnt/data/safetyCode/model_hub/LeTue09/qwen25coder3b-sft-reasoning-ckpt-37
 
 # Auto-detect number of GPUs from CUDA_VISIBLE_DEVICES
 N_GPUS=$(echo $CUDA_VISIBLE_DEVICES | tr ',' '\n' | wc -l)
@@ -28,7 +28,7 @@ export VLLM_ATTENTION_BACKEND=XFORMERS
 # ---------------------------------------------------------------------------
 
 TIME_TAG=$(date +%Y%m%d-%H%M%S)
-MOO_ALGORITHM="REVERSE"
+MOO_ALGORITHM="NONE"
 # Set reward ratios based on configuration
 case $REWARD_CONFIG in
     "detector_only")
@@ -96,10 +96,10 @@ PYTHONUNBUFFERED=1 python -m verl.trainer.main_ppo \
  data.train_files=$TRAIN_DATA \
  data.val_files=$VAL_DATA \
  algorithm.adv_estimator=grpo_moo \
- data.train_batch_size=512 \
- data.val_batch_size=512 \
+ data.train_batch_size=128 \
+ data.val_batch_size=128 \
  data.max_prompt_length=375 \
- data.max_response_length=1024 \
+ data.max_response_length=3072 \
  actor_rollout_ref.model.path=$BASE_MODEL \
  actor_rollout_ref.actor.optim.lr=1e-6 \
  actor_rollout_ref.actor.ppo_mini_batch_size=64 \
