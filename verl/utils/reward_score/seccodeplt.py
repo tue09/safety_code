@@ -240,7 +240,7 @@ def compute_score(solution_str, extra_info=None, safety_ratio=0.5, ut_ratio=0.0,
 
         # (TODO) Add by TueLDT1: Combine with format score
         if format_score["reward"] == 0:
-            ut_reward_score = 0
+            ut_reward_score = -1
         # ut_reward_score = 0.5*ut_reward_score + 0.5*format_score["reward"]
         if extra_info != None:
             if print_info:
@@ -304,5 +304,5 @@ def compute_score(solution_str, extra_info=None, safety_ratio=0.5, ut_ratio=0.0,
             print(f'============== Final Reward start =============')
             print(f'final reward is {final_reward} = ut_ratio({ut_ratio}) * ut_reward({ut_reward_score}) + mypy_ratio({mypy_ratio}) * mypy_reward({mypy_reward_score}) + scpd_ratio({scpd_ratio}) * scpd_reward({scpd_reward_score})')
             print(f'============== Final Reward start =============\n')
-
+        # print(f'### ut_reward_score = {ut_reward_score}, mypy_reward_score = {mypy_reward_score}, scpd_reward_score = {mypy_reward_score} and format_score = {format_score}')
         return final_reward, ut_reward_score, mypy_reward_score, scpd_reward_score

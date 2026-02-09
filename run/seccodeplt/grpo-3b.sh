@@ -1,10 +1,10 @@
 #!/bin/bash
 
-export CUDA_VISIBLE_DEVICES=4,5,6,7
+export CUDA_VISIBLE_DEVICES=0,1,2,3
 
 PROJECT_NAME=training-safety-code-rl
 # PROJECT_NAME=test
-EXPERIMENT_NAME=grpo_qwen2.5-3b-coder-instruct-after-reasoning-sft-hybrid-balance-adv-ckpt-37
+EXPERIMENT_NAME=grpo_qwen2.5-3b-coder-instruct-after-reasoning-sft-hybrid-balance-adv-ckpt-37-focus-format
 
 TRAIN_DATA=./data/seccodeplt/train.parquet
 VAL_DATA=./data/seccodeplt/test.parquet
