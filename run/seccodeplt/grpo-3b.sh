@@ -1,14 +1,14 @@
 #!/bin/bash
 
-export CUDA_VISIBLE_DEVICES=0,1,2,3
+export CUDA_VISIBLE_DEVICES=4,5,6,7
 
 PROJECT_NAME=training-safety-code-rl
 # PROJECT_NAME=test
-EXPERIMENT_NAME=grpo_qwen2.5-3b-coder-instruct-after-reasoning-sft-hybrid-balance-adv-ckpt-37-focus-format
+EXPERIMENT_NAME=grpo_qwen2.5-3b-coder-instruct-after-reasoning-sft-hybrid-balance-adv-in-dist-add-format
 
 TRAIN_DATA=./data/seccodeplt/train.parquet
 VAL_DATA=./data/seccodeplt/test.parquet
-BASE_MODEL=/mnt/data/safetyCode/model_hub/LeTue09/qwen25coder3b-sft-reasoning-ckpt-37
+BASE_MODEL=/mnt/data/safetyCode/model_hub/LeTue09/qwen25coder3b-sft-reasoning-seccodeplt
 
 # Auto-detect number of GPUs from CUDA_VISIBLE_DEVICES
 N_GPUS=$(echo $CUDA_VISIBLE_DEVICES | tr ',' '\n' | wc -l)
